@@ -39,24 +39,9 @@
 ;Arguments: ---
 ;Return: ---
 ;Side-effects: None
-; retirado na net, precisa de ser cof cof
 ; notas: Rápida mas não lida bem com problemas com poucas solucoes, exige heuristica perfeita, grande capacidade de eliminacao
 ; de becos sem saida atraves da propagacao de restricoes
 ; Slide aula11 e aula12
-;(defun sondagem-iterativa (problema) 
-;  (let ((estado-inicial (problema-estado-inicial problema))
- ;       (objectivo? (problema-objectivo? problema))
-  ;      (caminho))
- ;   (labels ((isamp (estado)
- ;       (cond ((funcall objectivo? estado) (list estado))
- ;              (t (let ((sucessores (problema-gera-sucessores problema)))
- ;                       (cond ((= (list-length sucessores) 0) nil)
-    ;                           (t
-    ;                           (let ((sucessor-escolhido (nth (random (list-length sucessores)))))
-    ;                                 (solucao (isamp sucessor-escolhido))))))))))
-    ;  (while (null caminho) 
-    ;    	 (setf caminho (isamp estado-inicial))))
-    ;(values caminho)))
     
 (defun random-element (list)
   "Return some element of the list, chosen at random."
@@ -76,12 +61,12 @@
 			(cond ((null estado) (list)) 
 				  ((funcall objectivo? estado) (setf found t) (list estado))
 				  (t (let ((sucessor-aleatorio (random-element (problema-gera-sucessores problema estado))))
-						(list sucessor-aleatorio (send-random-probe sucessor-aleatorio)))))))
-			(loop while (not found) 
-				do
-				   (setf caminho (send-random-probe estado-inicial)))
-			   (print "-----------------")
-				caminho)))
+						(list sucessor-aleatorio (send-random-probe sucessor-aleatorio)))))))						
+		(loop while (not found) 
+			do
+			   (setf caminho (send-random-probe estado-inicial)))
+		   (print "-----------------")
+			caminho)))
 				
 			   
 (defun foo (state)
@@ -93,8 +78,38 @@
 														:heuristica #'heuristic)))
 		result-state ))
 
-
-(defun iterative-pool ())
+(defun iterative-pool (problema)
+	"Discrepância limitada melhorada ilds"
+	(let ((estado-inicial (problema-estado-inicial problema))
+		  (objectivo? (problema-objectivo? problema))
+		  (*nos-gerados* 0)
+		  (*nos-expandidos* 0))
+      (labels ((ilds (estado num-discrepancias)
+			(let* ((sucessores  (problema-gera-sucessores problema estado))
+				   (num-sucessores (length sucessores))
+				   (cond ((= 0 num-sucessores) nil)
+						 ((funcall objectivo? estado) (list estado))
+						 ((= 0 num-discrepancias)
+						  (append estado (ilds (first sucessores) 0)))
+						 ((= num-sucessores 1)
+						  (let ((resultado (ilds (first sucessores) num-discrepancias)))
+							  (when (not (null resultado))
+									(return-from ilds (append estado resultado)))))
+						 (t (setf sucessores (rest sucessores))
+							(dolist (sucessor sucessores)
+								(let ((resultado (ilds sucessor (- num-discrepancias 1))))
+									(when (not (null resultado))
+										(return-from ilds (append estado resultado))))))))))) 
+		(ilds 0))))
+		
+(defun bar (state)
+	(let ((initial-state-transformed (convert-board-to-queens-state state))
+		  (result-state nil))
+		(setf result-state (iterative-pool (cria-problema initial-state-transformed 
+														(list #'operator)
+														:objectivo? #'objective? 
+														:heuristica #'heuristic)))
+		result-state ))
 
 ;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
 ;Arguments: ---
