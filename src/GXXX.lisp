@@ -10,22 +10,72 @@
 
 (in-package :user)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; UTILITARY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;Name: calendarização
-;Arguments: External representation of the problem, search strategy:
-; - "melhor.abordagem"
-; - "a*.melhor.heuristica"
-; - "a*.melhor.heuristica.alternativa"
-; - "sondagem.iterativa"
-; - "ILDS"
-; - "abordagem.alternativa"
-;Return: The external representation of the solution
+(defun random-element (list)
+  "Return some element of the list, chosen at random."
+  (if (= (length list) 0)
+	  nil
+	  (nth (random (length list)) list)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                 	  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  STRUCTURE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defstruct job-state machines allocated-tasks non-allocated-tasks)
+
+(defun empty-job-state ())
+
+(defun make-copy-job-state (state)
+	(declare (ignore state)))
+
+(defun result-of-allocating-task (state task)
+	(let ((state-copy (make-copy-job-state state)))
+		(allocate-task! state-copy task)
+		state-copy))
+
+(defun allocate-task! (state task)
+	(declare (ignore state))
+	(declare (ignore task)))
+
+(defun convert-to-internal-state(job)
+	(declare (ignore job)))
+
+(defun convert-to-allocated-job(state)
+	(declare (ignore state)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  SEARCH OPERATORS    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun objective? (state)
+	(declare (ignore state)))
+
+(defun operator (state)
+	(declare (ignore state)))
+
+;Name: heuristic-1
+;Arguments: ---
+;Return: ---
 ;Side-effects: None
 
+(defun heuristic-1 ())
 
-(defun calendarização ())
+;Name: heuristic-2
+;Arguments: ---
+;Return: ---
+;Side-effects: None
 
-
+(defun heuristic-2 ())
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -34,7 +84,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;Name: iterative-pool (sondagem iterativa
 ;Arguments: ---
 ;Return: ---
@@ -42,12 +91,6 @@
 ; notas: Rápida mas não lida bem com problemas com poucas solucoes, exige heuristica perfeita, grande capacidade de eliminacao
 ; de becos sem saida atraves da propagacao de restricoes
 ; Slide aula11 e aula12
-    
-(defun random-element (list)
-  "Return some element of the list, chosen at random."
-  (if (= (length list) 0)
-	  nil
-	  (nth (random (length list)) list)))
     
 (defun sondagem-iterativa (problema) 
   (let ((estado-inicial (problema-estado-inicial problema))
@@ -78,7 +121,7 @@
 														:heuristica #'heuristic)))
 		result-state ))
 
-(defun iterative-pool (problema)
+#| (defun iterative-pool (problema)
 	"Discrepância limitada melhorada ilds"
 	(let ((estado-inicial (problema-estado-inicial problema))
 		  (objectivo? (problema-objectivo? problema))
@@ -117,7 +160,7 @@
 														(list #'operator)
 														:objectivo? #'objective? 
 														:heuristica #'heuristic)))
-		result-state ))
+		result-state )) |#
 
 ;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
 ;Arguments: ---
@@ -136,20 +179,20 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;      HEURISTICS    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;Name: heuristic-1
-;Arguments: ---
-;Return: ---
+
+;Name: calendarização
+;Arguments: External representation of the problem, search strategy:
+; - "melhor.abordagem"
+; - "a*.melhor.heuristica"
+; - "a*.melhor.heuristica.alternativa"
+; - "sondagem.iterativa"
+; - "ILDS"
+; - "abordagem.alternativa"
+;Return: The external representation of the solution
 ;Side-effects: None
 
-(defun heuristic-1 ())
-
-;Name: heuristic-2
-;Arguments: ---
-;Return: ---
-;Side-effects: None
-
-(defun heuristic-2 ())
+(defun calendarização ())
