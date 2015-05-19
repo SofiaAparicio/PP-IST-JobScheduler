@@ -33,13 +33,13 @@
 
 (defun empty-job-state (num-maquinas num-jobs)
 	(make-job-state :machines (make-array num-maquinas :initial-element 0)
-					:allocated-tasks (list)
+					:allocated-tasks (make-array num-jobs)
 					:non-allocated-tasks (make-array num-jobs)))
 
 (defun make-copy-job-state (state)
 	(let ((machines (copy-array (job-state-machines state)))
-		  (allocated-tasks (copy-array (job-state-machines-allocated-tasks state)))
-		  (non-allocated-tasks (copy-array (job-state-machines-non-allocated-tasks state))))
+		  (allocated-tasks (copy-array (job-state-allocated-tasks state)))
+		  (non-allocated-tasks (copy-array (job-state-non-allocated-tasks state))))
 	(make-job-state :machines machines
 					:allocated-tasks allocated-tasks
 					:non-allocated-tasks non-allocated-tasks)))
@@ -49,6 +49,19 @@
 		(allocate-task! state-copy task initial-time)
 		state-copy))
 
+(defun copia-array-task (task-array)
+    (let ((new-task-array (make-array (length task-array))))
+            (dolist (task task-array)
+                (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
+        new-task-array))
+)
+
+(defun copia-estado (estado)
+    (let ((new-state (empty-job-state)))
+        (setf (job-state-machines new-state) (copy-array (job-state-machines estado)))
+        (setf (job-state-allocated-tasks new-state) (copia-array-task (job-state-allocated-tasks estado)))
+        (setf (job-state-non-allocated-tasks new-state) (copia-array-task (job-state-non-allocated-tasks estado)))))
+
 ;(defstruct job-shop-task
  ;  job.nr
   ; task.nr
@@ -56,6 +69,15 @@
    ;duration
    ;start.time)
 
+(defun copia-task (task)
+    (let ((new-task (make-job-shop-task)))
+        (setf (job-shop-task-job.nr new-task) (job-shop-task-job.nr task))
+        (setf (job-shop-task-task.nr new-task) (job-shop-task-task.nr task))
+        (setf (job-shop-task-machine.nr new-task) (job-shop-task-machine.nr task))
+        (setf (job-shop-task-duration new-task) (job-shop-task-duration task))
+        (setf (job-shop-task-start.time new-task) (job-shop-task-start.time task))
+        new-task))
+        
 
 (defun allocate-task! (state task initial-time)
 	(let ((machines (job-state-machines state))
@@ -69,7 +91,8 @@
 	(setf (job-state-machines-allocated-tasks state) (remove task non-allocated-tasks))
 	(setf (job-shop-task-start.time task) initial-time)
 
-	(declare (ignore initial-time))))
+	;(declare (ignore initial-time))
+    ))
 
 
 ;(defstruct job-shop-problem
@@ -78,16 +101,31 @@
 ;   n.machines
 ;   jobs)
 
+(defun copia-job (job)
+    (let ((new-job (make-job-shop-job))
+            (new-task-array (make-array (length (job-shop-job-tasks job)))))
+        (setf (job-shop-job-job.nr new-job) (job-shop-job-job.nr job))
+        (dolist (task (job-shop-job-tasks job))
+            (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
+        new-job))
+
+
 (defun convert-to-internal-state(problem)
 	(let* ((n-jobs (job-shop-problem-n.jobs problem))
 		   (n-machines (job-shop-problem-n.machines problem))
 		   (jobs (job-shop-problem-jobs problem))
-		   (initial-state (empty-job-state n-machines num-jobs)))
+		   (initial-state (empty-job-state n-machines num-jobs))
+           (done-tasks (make-array 0)))
 
 		(dolist (job jobs)
 			(let ((job-number (job-shop-job-job.nr job))
 				  (tasks (job-shop-job-tasks job)))
-
+                (dolist (task (job-shop-job-tasks job))
+                    (if (job-shop-task-start.time task)
+                        (setf done-tasks (concatenate done-tasks (list task)))
+                        (setf (aref (job-state-non-allocated-tasks initial-state) job-number) (concatenate (aref (job-state-non-allocated-tasks initial-state) job-number) task))
+                    )
+                )
 				;a ideia é que, se a task tiver alocada (start-time != nil), é só chamar allocate-task! e o codigo fica clean e arrumadinho :)
 				(print job)))))
 
