@@ -36,18 +36,7 @@
 					:allocated-tasks (make-array num-jobs)
 					:non-allocated-tasks (make-array num-jobs)))
 
-(defun make-copy-job-state (state)
-	(let ((machines (copy-array (job-state-machines state)))
-		  (allocated-tasks (copy-array (job-state-allocated-tasks state)))
-		  (non-allocated-tasks (copy-array (job-state-non-allocated-tasks state))))
-	(make-job-state :machines machines
-					:allocated-tasks allocated-tasks
-					:non-allocated-tasks non-allocated-tasks)))
 
-(defun result-of-allocating-task (state task initial-time)
-	(let ((state-copy (make-copy-job-state state)))
-		(allocate-task! state-copy task initial-time)
-		state-copy))
 
 (defun copia-array-task (task-array)
     (let ((new-task-array (make-array (length task-array))))
@@ -78,20 +67,26 @@
         new-task))
         
 
-(defun allocate-task! (state task initial-time)
-	(let ((machines (job-state-machines state))
-		  (allocated-tasks (job-state-machines-allocated-tasks state))
-		  (non-allocated-tasks (copy-array (job-state-machines-non-allocated-tasks state)))
-		  (job-nr (job-shop-task-job.nr task))
-		  (task-nr (job-shop-task-task.nr task))
-		  (machine-nr (job-shop-task-machine.nr task))
-		  (start-time (job-shop-task-start.time task)))
 
-	(setf (job-state-machines-allocated-tasks state) (remove task non-allocated-tasks))
-	(setf (job-shop-task-start.time task) initial-time)
-
-	;(declare (ignore initial-time))
-    ))
+(defun tempo-tarefa (state task)
+	(let ((machine-time (aref (job-state-machines state) (job-shop-task-task.nr task)))
+		(precedence-time 0)
+		(last-precedence-task (last (aref  (job-state-allocated-tasks state) (job-shop-task-job.nr task)))))
+		
+		(when (not last-precedence-task);verifica o caso em que e nil
+			(setf precedence-time (+ (job-shop-task-start.time last-precedence-task) (job-shop-task-duration last-precedence-task))))
+		(max machine-time precedence-time)))
+		
+(defun alocar-tarefa (state task)
+	(let ((new-state (copia-estado state))
+		  (task-time-start (tempo-tarefa state task))
+		  (job-number (job-shop-task-job.nr task))
+		  (new-task (copia-tarefa task)))
+		(setf (aref (job-state-non-allocated-tasks new-state) job-number) (remove task (aref (job-state-non-allocated-tasks new-state) job-number)));Potencial bug no remove, removendo original na copia
+		(setf (job-shop-task-start.time new-task) task-time-start)
+		(setf (aref (job-state-allocated-tasks new-state) job-number) (concatenate (aref (job-state-allocated-tasks new-state) job-number) new-task))
+		(setf (aref (job-state-machines new-state) (job-shop-task-machine.nr))  (+ task-time-start (job-shop-task-duration new-task))) ;maquina com total de tempo utilizado
+	new-state))
 
 
 ;(defstruct job-shop-problem
@@ -125,7 +120,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun objective? (state)
-	(dolist (job (job-state-non-allocated-tasks))
+	(dolist (job (job-state-non-allocated-tasks state))
         (when (not (equal (length job) 0))
             (return-from objective? nil)))
     t)
