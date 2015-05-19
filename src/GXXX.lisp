@@ -88,7 +88,7 @@
 			(let ((job-number (job-shop-job-job.nr job))
 				  (tasks (job-shop-job-tasks job)))
 
-				;a ideia é que, se a task tiver alocada, é só chamar allocate-task!
+				;a ideia é que, se a task tiver alocada (start-time != nil), é só chamar allocate-task! e o codigo fica clean e arrumadinho :)
 				(print job)))))
 
 
