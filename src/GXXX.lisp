@@ -31,10 +31,10 @@
 
 (defstruct job-state machines allocated-tasks non-allocated-tasks)
 
-(defun empty-job-state (num-maquinas num-tarefas)
+(defun empty-job-state (num-maquinas num-jobs)
 	(make-job-state :machines (make-array num-maquinas :initial-element 0)
-					:allocated-tasks (make-array num-tarefas)
-					:non-allocated-tasks (make-array num-tarefas)))
+					:allocated-tasks (list)
+					:non-allocated-tasks (make-array num-jobs)))
 
 (defun make-copy-job-state (state)
 	(let ((machines (copy-array (job-state-machines state)))
@@ -44,14 +44,32 @@
 					:allocated-tasks allocated-tasks
 					:non-allocated-tasks non-allocated-tasks)))
 
-(defun result-of-allocating-task (state task)
+(defun result-of-allocating-task (state task initial-time)
 	(let ((state-copy (make-copy-job-state state)))
-		(allocate-task! state-copy task)
+		(allocate-task! state-copy task initial-time)
 		state-copy))
 
-(defun allocate-task! (state task)
-	(declare (ignore state))
-	(declare (ignore task)))
+;(defstruct job-shop-task
+ ;  job.nr
+  ; task.nr
+   ;machine.nr
+   ;duration
+   ;start.time)
+
+
+(defun allocate-task! (state task initial-time)
+	(let ((machines (job-state-machines state))
+		  (allocated-tasks (job-state-machines-allocated-tasks state))
+		  (non-allocated-tasks (copy-array (job-state-machines-non-allocated-tasks state)))
+		  (job-nr (job-shop-task-job.nr task))
+		  (task-nr (job-shop-task-task.nr task))
+		  (machine-nr (job-shop-task-machine.nr task))
+		  (start-time (job-shop-task-start.time task)))
+
+	(setf (job-state-machines-allocated-tasks state) (remove task non-allocated-tasks))
+	(setf (job-shop-task-start.time task) initial-time)
+
+	(declare (ignore initial-time))))
 
 
 ;(defstruct job-shop-problem
@@ -61,11 +79,19 @@
 ;   jobs)
 
 (defun convert-to-internal-state(problem)
-	(let ((name (job-shop-problem-name problem))
-		  (n-jobs (job-shop-problem-n.jobs problem))
-		  (n-machines (job-shop-problem-n.machines problem))
-		  (jobs (job-shop-problem-jobs problem)))
-	name))
+	(let* ((n-jobs (job-shop-problem-n.jobs problem))
+		   (n-machines (job-shop-problem-n.machines problem))
+		   (jobs (job-shop-problem-jobs problem))
+		   (initial-state (empty-job-state n-machines num-jobs)))
+
+		(dolist (job jobs)
+			(let ((job-number (job-shop-job-job.nr job))
+				  (tasks (job-shop-job-tasks job)))
+
+				;a ideia é que, se a task tiver alocada, é só chamar allocate-task!
+				(print job)))))
+
+
 
 (defun convert-to-allocated-job(state)
 	(declare (ignore state)))
