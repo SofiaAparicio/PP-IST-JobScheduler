@@ -54,10 +54,9 @@
             (dolist (task task-array)
                 (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
         new-task-array))
-)
 
 (defun copia-estado (estado)
-    (let ((new-state (empty-job-state)))
+    (let ((new-state (empty-job-state (length (job-state-machines estado)) (length (job-state-allocated-tasks estado)))))
         (setf (job-state-machines new-state) (copy-array (job-state-machines estado)))
         (setf (job-state-allocated-tasks new-state) (copia-array-task (job-state-allocated-tasks estado)))
         (setf (job-state-non-allocated-tasks new-state) (copia-array-task (job-state-non-allocated-tasks estado)))))
@@ -109,25 +108,10 @@
             (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
         new-job))
 
-
-(defun convert-to-internal-state(problem)
-	(let* ((n-jobs (job-shop-problem-n.jobs problem))
-		   (n-machines (job-shop-problem-n.machines problem))
-		   (jobs (job-shop-problem-jobs problem))
-		   (initial-state (empty-job-state n-machines num-jobs))
-           (done-tasks (make-array 0)))
-
-		(dolist (job jobs)
-			(let ((job-number (job-shop-job-job.nr job))
-				  (tasks (job-shop-job-tasks job)))
-                (dolist (task (job-shop-job-tasks job))
-                    (if (job-shop-task-start.time task)
-                        (setf done-tasks (concatenate done-tasks (list task)))
-                        (setf (aref (job-state-non-allocated-tasks initial-state) job-number) (concatenate (aref (job-state-non-allocated-tasks initial-state) job-number) task))
-                    )
-                )
-				;a ideia é que, se a task tiver alocada (start-time != nil), é só chamar allocate-task! e o codigo fica clean e arrumadinho :)
-				(print job)))))
+(defun problem-to-state (problem);isto assume que nao haja tarefas concluidas
+    (let ((new-state (empty-job-state (job-shop-problem-n.machines problem) (job-shop-problem-n.jobs problem))))
+        (dolist (job (job-shop-problem-jobs problem))
+            (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) (copia-array-tasks (job-shop-job-tasks job))))))
 
 
 
@@ -141,7 +125,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun objective? (state)
-	(= 0 (length (job-state-non-allocated-tasks state))))
+	(dolist (job (job-state-non-allocated-tasks))
+        (when (not (equal (length job) 0))
+            (return-from objective? nil)))
+    t)
 
 (defun operator (state)
 	(declare (ignore state)))
