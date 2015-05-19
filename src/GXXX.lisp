@@ -31,10 +31,18 @@
 
 (defstruct job-state machines allocated-tasks non-allocated-tasks)
 
-(defun empty-job-state ())
+(defun empty-job-state (num-maquinas num-tarefas)
+	(make-job-state :machines (make-array num-maquinas :initial-element 0)
+					:allocated-tasks (make-array num-tarefas)
+					:non-allocated-tasks (make-array num-tarefas)))
 
 (defun make-copy-job-state (state)
-	(declare (ignore state)))
+	(let ((machines (copy-array (job-state-machines state)))
+		  (allocated-tasks (copy-array (job-state-machines-allocated-tasks state)))
+		  (non-allocated-tasks (copy-array (job-state-machines-non-allocated-tasks state))))
+	(make-job-state :machines machines
+					:allocated-tasks allocated-tasks
+					:non-allocated-tasks non-allocated-tasks)))
 
 (defun result-of-allocating-task (state task)
 	(let ((state-copy (make-copy-job-state state)))
@@ -45,8 +53,19 @@
 	(declare (ignore state))
 	(declare (ignore task)))
 
-(defun convert-to-internal-state(job)
-	(declare (ignore job)))
+
+;(defstruct job-shop-problem
+;   name
+;   n.jobs
+;   n.machines
+;   jobs)
+
+(defun convert-to-internal-state(problem)
+	(let ((name (job-shop-problem-name problem))
+		  (n-jobs (job-shop-problem-n.jobs problem))
+		  (n-machines (job-shop-problem-n.machines problem))
+		  (jobs (job-shop-problem-jobs problem)))
+	name))
 
 (defun convert-to-allocated-job(state)
 	(declare (ignore state)))
@@ -58,7 +77,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun objective? (state)
-	(declare (ignore state)))
+	(= 0 (length (job-state-non-allocated-tasks state))))
 
 (defun operator (state)
 	(declare (ignore state)))

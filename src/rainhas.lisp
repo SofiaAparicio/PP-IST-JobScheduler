@@ -19,9 +19,9 @@
 		  (result-state nil)
 		  (transformed-result nil))
 		(setf result-state (procura (cria-problema initial-state-transformed 
-													(list #'operator)
-												   	:objectivo? #'objective? 
-												   	:heuristica #'heuristic) 
+													(list #'operator-r)
+												   	:objectivo? #'objective-r? 
+												   	:heuristica #'heuristic-r) 
 												   	strategy))
 		(setf result-state (first (last (nth (- (length result-state) 4) result-state))))
 		(when (not (null result-state))
@@ -229,7 +229,7 @@
 ; Page Faults: major: 0 (gc: 0), minor: 0 (gc: 0)
 ;
 ; Therefore, the final solution iterates over columns first. 
-(defun operator (state)
+(defun operator-r (state)
 	(let ((size (array-dimension (queens-state-positions state) 0))
 		  (sucessors (list))
 		  (rotated-positions (list)))
@@ -244,14 +244,14 @@
 						  		(setf rotated-positions (append rotated-positions (generate-rotated-positions (create-position r c) size)))
 						 	 	(setf sucessors (append sucessors (list (result-of-move state r c)))))))
 				  ;the board is filled column by column. Return after iterating all lines.
-				  (return-from operator sucessors)))))
+				  (return-from operator-r sucessors)))))
 
 
 ;Name: objective?
 ;Arguments: queens-state structure
 ;Return: t if the number of placed queens is equals to the size of the board. nil if not.
 ;Side-effects: None
-(defun objective? (state)
+(defun objective-r? (state)
 	(= (queens-state-number-placed state) (array-dimension (queens-state-positions state) 0)))
 		
 ;Name: heuristic
@@ -265,7 +265,7 @@
 ;        number of free-rows. The final result is the product of the weighted sum of the conflicts for each 
 ;        rows and the number of free rows, which represents a global measure of the board. A board with more
 ;        free rows is better than another board with less free rows.
-(defun heuristic (state)
+(defun heuristic-r (state)
   (let* ((heuristic 0)
          (positions (queens-state-positions state))
          (size (array-dimension positions 0))
