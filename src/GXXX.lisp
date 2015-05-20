@@ -233,6 +233,23 @@
 		   (print "-----------------")
 			caminho)))
 
+; (defun 	ILDSjob-shop (problema)
+	; (let ((state (problem-to-job-state))
+		; (sucessores  (problema-gera-sucessores problema state))
+	; )
+		; (labels (	(ILDS-Descrepancia (estado profundidade-max descrepancia) 
+						
+					; )
+					
+					; (ILDS)
+				; )
+		; )
+	
+	; (ILDS-Descrepancia state (state-max-depth state) 0)
+	
+	; )
+; )
+		
 #| (defun iterative-pool (problema)
 	"Discrepância limitada melhorada ilds"
 	(let ((estado-inicial (problema-estado-inicial problema))
