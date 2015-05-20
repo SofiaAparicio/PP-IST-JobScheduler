@@ -179,6 +179,11 @@
          (setf depth (+ depth (length (aref (job-state-non-allocated-tasks state) i)))))
 	depth))
 
+
+(defun cost (state)
+	(let ((machines (job-state-machines state)))
+		(reduce #'max (map 'list (lambda (x) x) machines))))
+
 ;Name: heuristic-1
 ;Arguments: ---
 ;Return: ---
