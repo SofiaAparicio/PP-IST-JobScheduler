@@ -233,55 +233,38 @@
 		   (print "-----------------")
 			caminho)))
 
-; (defun 	ILDSjob-shop (problema)
-	; (let ((state (problem-to-job-state))
-		; (sucessores  (problema-gera-sucessores problema state))
-	; )
-		; (labels (	(ILDS-Descrepancia (estado profundidade-max descrepancia) 
-						
-					; )
-					
-					; (ILDS)
-				; )
-		; )
-	
-	; (ILDS-Descrepancia state (state-max-depth state) 0)
-	
-	; )
-; )
-		
-#| (defun iterative-pool (problema)
-	"Discrepância limitada melhorada ilds"
-	(let ((estado-inicial (problema-estado-inicial problema))
+(defun 	ILDS-job-shop (problema)
+	(let* ((state (problem-to-job-state (problema-estado-inicial problema)))
 		  (objectivo? (problema-objectivo? problema))
-		  (*nos-gerados* 0)
-		  (*nos-expandidos* 0)
-          (last-path nil)
-          (current-path nil)
-          (n-discrepancias 0))
-      (labels ((ilds (estado num-discrepancias)
-			(let* ((sucessores  (problema-gera-sucessores problema estado))
-				   (num-sucessores (length sucessores))
-				   (cond ((= 0 num-sucessores) nil)
-						 ((funcall objectivo? estado) (list estado))
-						 ((= 0 num-discrepancias)
-						  (append estado (ilds (first sucessores) 0)));;Segundo o xu, nao e o primeiro mas sim o com melhor heuristica
-						 ((= num-sucessores 1)
-						  (let ((resultado (ilds (first sucessores) num-discrepancias)))
-							  (when (not (null resultado))
-									(return-from ilds (append estado resultado)))))
-						 (t (setf sucessores (rest sucessores))
-							(dolist (sucessor sucessores)
-								(let ((resultado (ilds sucessor (- num-discrepancias 1))))
-									(when (not (null resultado))
-										(return-from ilds (append estado resultado)))))))))))) 
-		(do ((setf current-path (ilds  estado-inicial n-discrepancias))
-            (incf n-discrepancias)
-            (when (equalsp last-path current-path)
-                    (return-from iterative-pool current-path))
-            (setf last-path current-path))
-            t)))
- |#
+		  (heuristica (problema-heuristica problema))
+		  (profundidade-maxima (state-max-depth state)))
+		(labels ((bigger-heuristic (state1 state2)
+					(> (funcall heuristica state1) (funcall heuristica state2)))
+				(ILDS-Descrepancia (estado descrepancia &optional (profundidade-actual 0)) 
+					(if (funcall objectivo? estado)
+						estado
+					(let* ((sucessores  (problema-gera-sucessores problema state))
+						  (n-sucessores (length sucessores)))
+						(if (equal 0 n-sucessores) 
+							nil
+							(progn (sort sucessores #'bigger-heuristic);alegadamente destrutiva
+									(when (not (>= (+ profundidade-actual descrepancia) profundidade-maxima))
+										(ILDS-Descrepancia (first sucessores) descrepancia (+ profundidade-actual 1)))
+									(dolist (sucessor (rest sucessores))
+										(ILDS-Descrepancia sucessor (- descrepancia 1) (+ profundidade-actual 1))))))))
+				(descrepancy-loop (state descrepancy)
+					(let ((result (ILDS-Descrepancia state descrepancy)))
+						(cond ((equal descrepancy profundidade-maxima) result);caso seja resultado vazio e ja' nao haja mais descrepancias a fazer, e' mesmo vazio
+								((null result) (descrepancy-loop state (+ descrepancy 1)));se houver descrepancias a fazer, fa'-las e chama de novo
+								(t result)))));encontrou a solucao)
+			(descrepancy-loop state 0))))
+			
+(defun bar (initial-state) 
+	(ILDS-job-shop (cria-problema initial-state 	(list #'operator)
+													:objectivo? #'objective? 
+													:heuristica #'heuristic-1)))
+			
+		
 
 ;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
 ;Arguments: ---
