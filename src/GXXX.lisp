@@ -125,9 +125,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun objective? (state)
-	(dolist (job (job-state-non-allocated-tasks state))
-        (when (not (equal (length job) 0))
-            (return-from objective? nil)))
+	(let ((jobs (job-state-non-allocated-tasks state)))
+		(dotimes (i (length jobs))
+			(when (not (null (aref jobs i)))
+				(return-from objective? nil))))
     t)
 
 (defun operator (state)
