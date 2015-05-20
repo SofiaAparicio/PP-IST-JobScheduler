@@ -132,7 +132,13 @@
     t)
 
 (defun operator (state)
-	(declare (ignore state)))
+	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
+		  (sucessores (list)))
+		(dotimes (job-index (length unallocated-tasks))
+			(let* ((job-tasks (aref unallocated-tasks job-index)))
+				(dolist (task job-tasks)
+					(setf sucessores (cons (result-allocate-task state task) sucessores)))))
+		sucessores))
 
 ;Name: heuristic-1
 ;Arguments: ---
@@ -264,7 +270,15 @@
 
 (defun calendarização ())
 
-
+(defun resolve-problema (problem strategy)
+	(let ((initial-state (job-shop-problem-to-job-state problem))
+		  (result-state nil))
+		(setf result-state (procura (cria-problema initial-state 
+													(list #'operator)
+												   	:objectivo? #'objective? 
+												   	:heuristica #'heuristic) 
+												   	strategy))
+		(first (last (nth (- (length result-state) 4) result-state)))))
 
 
 (setf t1 (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 0 :MACHINE.NR 2 :DURATION 1 :START.TIME NIL))
