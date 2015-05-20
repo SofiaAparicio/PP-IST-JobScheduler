@@ -176,6 +176,12 @@
 					(setf sucessores (cons (result-allocate-task state (first job-tasks)) sucessores)))))
 		sucessores))
 
+(defun state-max-depth (state)
+    (let ((depth 0))
+        (dotimes (i (length (job-state-non-allocated-tasks state)))
+         (setf depth (+ depth (length (aref (job-state-non-allocated-tasks state) i)))))
+	depth))
+
 ;Name: heuristic-1
 ;Arguments: ---
 ;Return: ---
