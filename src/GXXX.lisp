@@ -33,15 +33,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;FIXME renomear machine para machine -times
-(defstruct job-state machines allocated-tasks non-allocated-tasks)
+(defstruct job-state machines wasted-time allocated-tasks non-allocated-tasks)
 
 (defmethod print-object ((object job-state) stream)
 	(let ((machines (job-state-machines object))
+		  (wasted (job-state-wasted-time object))
 		  (alloc (job-state-allocated-tasks object))
 		  (unnaloc (job-state-non-allocated-tasks object)))
 
 		(dotimes (i (length machines))
-			(format stream "Machine ~D ends at ~D ~%" i (aref machines i)))
+			(format stream "Machine ~D ends at ~D [Total wasted time: ~D] ~%" i (aref machines i) (aref wasted i)))
 		(format stream "-- ALLOCATED TASKS -- ~%")
 		(dotimes (i (length alloc))
 			(format stream "     Job #~D ~%" i)
@@ -67,6 +68,7 @@
 
 (defun empty-job-state (num-machines num-jobs)
 	(make-job-state :machines (make-array num-machines :initial-element 0)
+					:wasted-time (make-array num-machines :initial-element 0)
 					:allocated-tasks (make-array num-jobs :initial-element (list))
 					:non-allocated-tasks (make-array num-jobs :initial-element (list))))
 
@@ -85,6 +87,7 @@
 (defun copy-job-state (state)
 	(make-job-state
 		:machines (copy-array (job-state-machines state))
+		:wasted-time (copy-array (job-state-wasted-time state))
 		:allocated-tasks (copy-job-tasks-map (job-state-allocated-tasks state))
 		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))))
 
@@ -111,19 +114,30 @@
 
 ;chamar isto quando se fazer a conversao do problema para o estado e se nao tiver start-time a nil 
 (defun allocate-task! (state task)
-	(let ((task-time-start (determine-start-time state task))
-		  (job-number (job-shop-task-job.nr task))
-		  (new-task (copy-task task)))		
+	(let* ((task-time-start (determine-start-time state task))
+		   (job-number (job-shop-task-job.nr task))
+		   (new-task (copy-task task))
+		   (machine-nr (job-shop-task-machine.nr new-task))
+		   (wasted-time (- task-time-start
+		   				   (aref (job-state-machines state) machine-nr))))
+		
+		;update machine waste time
+		(setf (aref (job-state-wasted-time state) machine-nr) 
+			  (+ (aref (job-state-wasted-time state) machine-nr) wasted-time))
+
 		;remove task from unallocated tasks
 		(setf (aref (job-state-non-allocated-tasks state) job-number) 
 			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))		
+		
 		;update starttime of the new task
 		(setf (job-shop-task-start.time new-task) task-time-start)		
+		
 		;update allocated tasks
 		(setf (aref (job-state-allocated-tasks state) job-number) 
 			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))
+
 		;update machines times
-		(setf (aref (job-state-machines state) (job-shop-task-machine.nr new-task))  
+		(setf (aref (job-state-machines state) machine-nr)  
 			  (+ task-time-start (job-shop-task-duration new-task)))))
 
 
@@ -168,8 +182,11 @@
 ;Side-effects: None
 
 (defun heuristic-1 (state)
-	(declare (ignore state))
-	1)
+	(let ((machines (job-state-machines object))
+		  (alloc (job-state-allocated-tasks object))
+		  (unnaloc (job-state-non-allocated-tasks object)))
+
+	1))
 
 ;Name: heuristic-2
 ;Arguments: ---
