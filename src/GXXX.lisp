@@ -49,7 +49,7 @@
 		(dotimes (job-index num-jobs)
 			(let ((array-tasks (aref map job-index)))
 				(when (not (null array-tasks))
-					(setf (aref new-map job-index) (copy-array-tasks (aref map job-index))))))
+					(setf (aref new-map job-index) (copy-array-tasks array-tasks)))))
 		new-map))
 
 	
@@ -113,6 +113,13 @@
         new-state)))
 
 
+;(defun copia-job (job)
+ ;   (let ((new-job (make-job-shop-job))
+  ;          (new-task-array (make-array (length (job-shop-job-tasks job)))))
+   ;     (setf (job-shop-job-job.nr new-job) (job-shop-job-job.nr job))
+   ;     (dolist (task (job-shop-job-tasks job))
+   ;         (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
+   ;     new-job))
 
 (defun convert-to-allocated-job(state)
 	(declare (ignore state)))
