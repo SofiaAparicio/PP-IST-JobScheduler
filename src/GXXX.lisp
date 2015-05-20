@@ -127,9 +127,9 @@
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
 		  (sucessores (list)))
 		(dotimes (job-index (length unallocated-tasks))
-			(let* ((job-tasks (aref unallocated-tasks job-index)))
-				(dolist (task job-tasks)
-					(setf sucessores (cons (result-allocate-task state task) sucessores)))))
+			(let ((job-tasks (aref unallocated-tasks job-index)))
+				(when (not (null job-tasks))
+					(setf sucessores (cons (result-allocate-task state (first job-tasks)) sucessores)))))
 		sucessores))
 
 ;Name: heuristic-1
