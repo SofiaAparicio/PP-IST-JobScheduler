@@ -145,7 +145,9 @@
 ;Return: ---
 ;Side-effects: None
 
-(defun heuristic-1 ())
+(defun heuristic-1 (state)
+	(declare (ignore state))
+	1)
 
 ;Name: heuristic-2
 ;Arguments: ---
@@ -276,7 +278,7 @@
 		(setf result-state (procura (cria-problema initial-state 
 													(list #'operator)
 												   	:objectivo? #'objective? 
-												   	:heuristica #'heuristic) 
+												   	:heuristica #'heuristic-1) 
 												   	strategy))
 		(first (last (nth (- (length result-state) 4) result-state)))))
 
