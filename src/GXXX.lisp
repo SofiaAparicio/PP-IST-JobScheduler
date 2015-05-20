@@ -35,7 +35,21 @@
 ;FIXME renomear machine para machine -times
 (defstruct job-state machines wasted-time allocated-tasks non-allocated-tasks)
 
-(defmethod print-object ((object job-state) stream)
+#| (defmethod print-object ((object job-state) stream)
+	(labels ((print-array-jobs (initial-string jobs))
+		(format stream "~S" initial-string)
+		(dotimes (i (length jobs))
+			(format stream "     Job #~D ~%" i)
+				(dolist (task (aref jobs i))
+					(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
+						(job-shop-task-task.nr task) 
+						(job-shop-task-machine.nr task) 
+						(job-shop-task-start.time task) 
+						(job-shop-task-duration task)
+						(if (null (job-shop-task-start.time task))
+							-1
+							(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
+
 	(let ((machines (job-state-machines object))
 		  (wasted (job-state-wasted-time object))
 		  (alloc (job-state-allocated-tasks object))
@@ -43,26 +57,9 @@
 
 		(dotimes (i (length machines))
 			(format stream "Machine ~D ends at ~D [Total wasted time: ~D] ~%" i (aref machines i) (aref wasted i)))
-		(format stream "-- ALLOCATED TASKS -- ~%")
-		(dotimes (i (length alloc))
-			(format stream "     Job #~D ~%" i)
-			(dolist (task (aref alloc i))
-				(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
-					(job-shop-task-task.nr task) 
-					(job-shop-task-machine.nr task) 
-					(job-shop-task-start.time task) 
-					(job-shop-task-duration task)
-					(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))
-		(format stream "-- NON-ALLOCATED TASKS -- ~%")
-		(dotimes (i (length unnaloc))
-			(format stream "     Job #~D ~%" i)
-			(dolist (task (aref unnaloc i))
-				(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
-					(job-shop-task-task.nr task) 
-					(job-shop-task-machine.nr task) 
-					(job-shop-task-start.time task) 
-					(job-shop-task-duration task)
-					(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
+		
+		(print-array-jobs "-- ALLOCATED TASKS -- ~%" alloc)
+		(print-array-jobs "-- NON-ALLOCATED TASKS -- ~%" unnalloc)))) |#
 
 
 
@@ -84,7 +81,7 @@
 			(setf (aref new-map job-index) (copy-list-tasks (aref map job-index))))
 		new-map))
 
-(defun copy-job-state (state)
+(defun create-copy-job-state (state)
 	(make-job-state
 		:machines (copy-array (job-state-machines state))
 		:wasted-time (copy-array (job-state-wasted-time state))
@@ -108,7 +105,7 @@
 		(max machine-time precedence-time)))
 
 (defun result-allocate-task (state task)
-	(let ((copy-state (copy-job-state state)))
+	(let ((copy-state (create-copy-job-state state)))
 		(allocate-task! copy-state task)
 		copy-state))
 
