@@ -10,10 +10,10 @@
 
 (in-package :user)
 
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; UTILITARY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun random-element (list)
@@ -24,49 +24,49 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                 	  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  STRUCTURE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;FIXME renomear machine para machine -times
 (defstruct job-state machines allocated-tasks non-allocated-tasks)
 
-(defun empty-job-state (num-maquinas num-jobs)
-	(make-job-state :machines (make-array num-maquinas :initial-element 0)
+(defun empty-job-state (num-machines num-jobs)
+	(make-job-state :machines (make-array num-machines :initial-element 0)
 					:allocated-tasks (make-array num-jobs)
 					:non-allocated-tasks (make-array num-jobs)))
 
 
+(defun copy-array-tasks (array-tasks)
+	(let* ((num-tasks (length array-tasks))
+		   (copy-array (make-array num-tasks)))
+		(dotimes (i num-tasks)
+			(setf (aref copy-array i) (copy-task (aref array-tasks i))))
+		copy-array))
 
-(defun copia-array-task (task-array)
-    (let ((new-task-array (make-array (length task-array))))
-            (dolist (task task-array)
-                (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
-        new-task-array))
+(defun copy-job-tasks-map (map)
+	(let* ((num-jobs (length map))
+		   (new-map (make-array num-jobs :initial-element nil)))
+		(dotimes (job-index num-jobs)
+			(let ((array-tasks (aref map job-index)))
+				(when (not (null array-tasks))
+					(setf (aref new-map job-index) (copy-array-tasks (aref map job-index))))))
+		new-map))
 
-(defun copia-estado (estado)
-    (let ((new-state (empty-job-state (length (job-state-machines estado)) (length (job-state-allocated-tasks estado)))))
-        (setf (job-state-machines new-state) (copy-array (job-state-machines estado)))
-        (setf (job-state-allocated-tasks new-state) (copia-array-task (job-state-allocated-tasks estado)))
-        (setf (job-state-non-allocated-tasks new-state) (copia-array-task (job-state-non-allocated-tasks estado)))))
+	
 
-;(defstruct job-shop-task
- ;  job.nr
-  ; task.nr
-   ;machine.nr
-   ;duration
-   ;start.time)
+(defun copy-job-state (state)
+	(make-job-state
+		:machines (copy-array (job-state-machines state))
+		:allocated-tasks (copy-array-tasks (job-state-allocated-tasks state))
+		:non-allocated-tasks (copy-array-tasks (job-state-non-allocated-tasks state))))
 
-(defun copia-task (task)
-    (let ((new-task (make-job-shop-task)))
-        (setf (job-shop-task-job.nr new-task) (job-shop-task-job.nr task))
-        (setf (job-shop-task-task.nr new-task) (job-shop-task-task.nr task))
-        (setf (job-shop-task-machine.nr new-task) (job-shop-task-machine.nr task))
-        (setf (job-shop-task-duration new-task) (job-shop-task-duration task))
-        (setf (job-shop-task-start.time new-task) (job-shop-task-start.time task))
-        new-task))
-        
-
+(defun copy-task (task)
+	(make-job-shop-task 
+		:job.nr (job-shop-task-job.nr task)
+   		:task.nr (job-shop-task-task.nr task)
+   		:machine.nr (job-shop-task-machine.nr task)
+   		:duration (job-shop-task-duration task)
+   		:start.time (job-shop-task-start.time task)))
 
 (defun tempo-tarefa (state task)
 	(let ((machine-time (aref (job-state-machines state) (job-shop-task-task.nr task)))
@@ -76,37 +76,41 @@
 		(when (not last-precedence-task);verifica o caso em que e nil
 			(setf precedence-time (+ (job-shop-task-start.time last-precedence-task) (job-shop-task-duration last-precedence-task))))
 		(max machine-time precedence-time)))
-		
-(defun alocar-tarefa (state task)
-	(let ((new-state (copia-estado state))
-		  (task-time-start (tempo-tarefa state task))
+
+(defun result-allocate-task! (state task)
+	(let ((copy-state (copy-estado state)))
+		(aloca-tarefa! copy-state task)
+		copy-state))
+
+;chamar isto quando se fazer a conversao do problema para o estado e se nao tiver start-time a nil 
+(defun allocate-task! (state task)
+	(let ((task-time-start (tempo-tarefa state task))
 		  (job-number (job-shop-task-job.nr task))
-		  (new-task (copia-tarefa task)))
-		(setf (aref (job-state-non-allocated-tasks new-state) job-number) (remove task (aref (job-state-non-allocated-tasks new-state) job-number)));Potencial bug no remove, removendo original na copia
-		(setf (job-shop-task-start.time new-task) task-time-start)
-		(setf (aref (job-state-allocated-tasks new-state) job-number) (concatenate (aref (job-state-allocated-tasks new-state) job-number) new-task))
-		(setf (aref (job-state-machines new-state) (job-shop-task-machine.nr))  (+ task-time-start (job-shop-task-duration new-task))) ;maquina com total de tempo utilizado
-	new-state))
+		  (new-task (copy-tarefa task)))
+		(setf (aref (job-state-non-allocated-tasks state) job-number) 
+			  (remove task (aref (job-state-non-allocated-tasks state) job-number)));Potencial bug no remove, removendo original na copia
+		(setf (job-shop-task-start.time task) task-time-start)
+		(setf (aref (job-state-allocated-tasks state) job-number) 
+			  (concatenate (aref (job-state-allocated-tasks state) job-number) new-task))
+		;maquina com total de tempo utilizado
+		(setf (aref (job-state-machines state) (job-shop-task-machine.nr new-task))  (+ task-time-start (job-shop-task-duration new-task)))))
 
 
-;(defstruct job-shop-problem
-;   name
-;   n.jobs
-;   n.machines
-;   jobs)
+(defun job-shop-problem-to-job-state (problem);isto assume que nao haja tarefas concluidas
+	(labels ((list-tasks-to-array-tasks (list-tasks)
+		(let ((new-task-array (make-array (length list-tasks))))
+	    	(print new-task-array)
+	            (dolist (task list-tasks)
+	                (setf (aref new-task-array (job-shop-task-task.nr task)) (copy-task task)))
+	        new-task-array)))
 
-(defun copia-job (job)
-    (let ((new-job (make-job-shop-job))
-            (new-task-array (make-array (length (job-shop-job-tasks job)))))
-        (setf (job-shop-job-job.nr new-job) (job-shop-job-job.nr job))
-        (dolist (task (job-shop-job-tasks job))
-            (setf (aref new-task-array (job-shop-task-task.nr task)) (copia-task task)))
-        new-job))
-
-(defun problem-to-state (problem);isto assume que nao haja tarefas concluidas
-    (let ((new-state (empty-job-state (job-shop-problem-n.machines problem) (job-shop-problem-n.jobs problem))))
+    (let* ((num-machines (job-shop-problem-n.machines problem))
+    	   (num-jobs (job-shop-problem-n.jobs problem))
+    	   (new-state (empty-job-state num-machines num-jobs)))
         (dolist (job (job-shop-problem-jobs problem))
-            (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) (copia-array-tasks (job-shop-job-tasks job))))))
+            (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) 
+            	  (list-tasks-to-array-tasks (job-shop-job-tasks job))))
+        new-state)))
 
 
 
@@ -144,9 +148,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;Name: iterative-pool (sondagem iterativa
@@ -243,9 +245,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -261,3 +261,10 @@
 ;Side-effects: None
 
 (defun calendarização ())
+
+
+
+
+
+(setf p1 (first *job-shop-problems*))
+(setf s1 (job-shop-problem-to-job-state p1))
