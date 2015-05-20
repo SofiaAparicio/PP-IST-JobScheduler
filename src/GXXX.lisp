@@ -67,7 +67,7 @@
    		:start.time (job-shop-task-start.time task)))
 
 (defun determine-start-time (state task)
-	(let ((machine-time (aref (job-state-machines state) (job-shop-task-task.nr task)))
+	(let ((machine-time (aref (job-state-machines state) (job-shop-task-machine.nr task)))
 		  (precedence-time 0)
 		  (last-precedence-task (first (aref (job-state-allocated-tasks state) (job-shop-task-job.nr task)))))
 		(when last-precedence-task;if there is a precedence task
@@ -83,23 +83,15 @@
 (defun allocate-task! (state task)
 	(let ((task-time-start (determine-start-time state task))
 		  (job-number (job-shop-task-job.nr task))
-		  (new-task (copy-task task)))
-		(print "big")
-		
+		  (new-task (copy-task task)))		
 		;remove task from unallocated tasks
 		(setf (aref (job-state-non-allocated-tasks state) job-number) 
-			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))
-		(print "bang")
-		
+			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))		
 		;update starttime of the new task
-		(setf (job-shop-task-start.time new-task) task-time-start)
-		(print "bobi")
-		
+		(setf (job-shop-task-start.time new-task) task-time-start)		
 		;update allocated tasks
 		(setf (aref (job-state-allocated-tasks state) job-number) 
-			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))
-		(print "tobias")
-		
+			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))		
 		;update machines times
 		(setf (aref (job-state-machines state) (job-shop-task-machine.nr new-task))  
 			  (+ task-time-start (job-shop-task-duration new-task)))))
