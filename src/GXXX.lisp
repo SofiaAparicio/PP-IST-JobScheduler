@@ -35,6 +35,36 @@
 ;FIXME renomear machine para machine -times
 (defstruct job-state machines allocated-tasks non-allocated-tasks)
 
+(defmethod print-object ((object job-state) stream)
+	(let ((machines (job-state-machines object))
+		  (alloc (job-state-allocated-tasks object))
+		  (unnaloc (job-state-non-allocated-tasks object)))
+
+		(dotimes (i (length machines))
+			(format stream "Machine ~D ends at ~D ~%" i (aref machines i)))
+		(format stream "-- ALLOCATED TASKS -- ~%")
+		(dotimes (i (length alloc))
+			(format stream "     Job #~D ~%" i)
+			(dolist (task (aref alloc i))
+				(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
+					(job-shop-task-task.nr task) 
+					(job-shop-task-machine.nr task) 
+					(job-shop-task-start.time task) 
+					(job-shop-task-duration task)
+					(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))
+		(format stream "-- NON-ALLOCATED TASKS -- ~%")
+		(dotimes (i (length unnaloc))
+			(format stream "     Job #~D ~%" i)
+			(dolist (task (aref unnaloc i))
+				(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
+					(job-shop-task-task.nr task) 
+					(job-shop-task-machine.nr task) 
+					(job-shop-task-start.time task) 
+					(job-shop-task-duration task)
+					(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
+
+
+
 (defun empty-job-state (num-machines num-jobs)
 	(make-job-state :machines (make-array num-machines :initial-element 0)
 					:allocated-tasks (make-array num-jobs :initial-element (list))
@@ -91,7 +121,7 @@
 		(setf (job-shop-task-start.time new-task) task-time-start)		
 		;update allocated tasks
 		(setf (aref (job-state-allocated-tasks state) job-number) 
-			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))		
+			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))
 		;update machines times
 		(setf (aref (job-state-machines state) (job-shop-task-machine.nr new-task))  
 			  (+ task-time-start (job-shop-task-duration new-task)))))
@@ -274,6 +304,8 @@
 												   	strategy))
 		(first (last (nth (- (length result-state) 4) result-state)))))
 
+(defun coco ()
+	(resolve-problema p1 "profundidade"))
 
 (setf t1 (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 0 :MACHINE.NR 2 :DURATION 1 :START.TIME NIL))
 (setf p1 (first *job-shop-problems*))
