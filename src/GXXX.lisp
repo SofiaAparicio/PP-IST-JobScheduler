@@ -209,16 +209,6 @@
 			   (setf caminho (send-random-probe estado-inicial)))
 		   (print "-----------------")
 			caminho)))
-				
-			   
-(defun foo (state)
-	(let ((initial-state-transformed (convert-board-to-queens-state state))
-		  (result-state nil))
-		(setf result-state (sondagem-iterativa (cria-problema initial-state-transformed 
-														(list #'operator)
-														:objectivo? #'objective? 
-														:heuristica #'heuristic)))
-		result-state ))
 
 #| (defun iterative-pool (problema)
 	"Discrepância limitada melhorada ilds"
@@ -251,15 +241,7 @@
                     (return-from iterative-pool current-path))
             (setf last-path current-path))
             t)))
-		
-(defun bar (state)
-	(let ((initial-state-transformed (convert-board-to-queens-state state))
-		  (result-state nil))
-		(setf result-state (iterative-pool (cria-problema initial-state-transformed 
-														(list #'operator)
-														:objectivo? #'objective? 
-														:heuristica #'heuristic)))
-		result-state )) |#
+ |#
 
 ;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
 ;Arguments: ---
@@ -304,8 +286,12 @@
 												   	strategy))
 		(first (last (nth (- (length result-state) 4) result-state)))))
 
-(defun coco ()
-	(resolve-problema p1 "profundidade"))
+(defun testa-profundidade (problema)
+	(resolve-problema problema "profundidade"))
+
+(defun testa-ilds (problema)
+	(resolve-problema problema "ilds")) ; TIAGO ADAPTA O RESOLVE PROBLEMA PARA ACEITAR OUTROS
+
 
 (setf t1 (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 0 :MACHINE.NR 2 :DURATION 1 :START.TIME NIL))
 (setf p1 (first *job-shop-problems*))
