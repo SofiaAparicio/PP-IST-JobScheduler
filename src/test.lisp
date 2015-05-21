@@ -1,6 +1,8 @@
 (defvar foo nil)
 (defvar foo2 nil)
 (defvar bar nil)
+(defvar prof1 nil)
+
 
 (setf foo (job-shop-problem-to-job-state
             (make-job-shop-problem
@@ -52,7 +54,9 @@
                                :TASKS (list 
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 3 :START.TIME NIL)))))))
 
-(defun test-prob-2 () (procura (cria-problema bar
+(setf prof1 (job-shop-problem-to-job-state (first *job-shop-problems*)))
+
+(defun test-prob-2 () (procura (cria-problema prof1
                                 (list #'operator)
                                 :objectivo? #'objective?
                                 :custo #'cost-max-machines

@@ -33,7 +33,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;FIXME renomear machine para machine -times
-(defstruct job-state machines wasted-time allocated-tasks non-allocated-tasks)
+(defstruct job-state machines previous-cost wasted-time allocated-tasks non-allocated-tasks)
 
 (defun get-hash-job-state(state)
 	;(print "CALLED HASH")
@@ -46,6 +46,7 @@
 
 (defun empty-job-state (num-machines num-jobs)
 	(make-job-state :machines (make-array num-machines :initial-element 0)
+					:previous-cost 0
 					:wasted-time (make-array num-machines :initial-element 0)
 					:allocated-tasks (make-array num-jobs :initial-element (list))
 					:non-allocated-tasks (make-array num-jobs :initial-element (list))))
@@ -65,6 +66,7 @@
 (defun create-copy-job-state (state)
 	(make-job-state
 		:machines (copy-array (job-state-machines state))
+		:previous-cost (job-state-previous-cost state)
 		:wasted-time (copy-array (job-state-wasted-time state))
 		:allocated-tasks (copy-job-tasks-map (job-state-allocated-tasks state))
 		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))))
@@ -148,11 +150,15 @@
 
 (defun operator (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
-		  (sucessores (list)))
+		  (sucessores (list))
+		  (cost-parent-state (cost-max-machines state)))
+
 		(dotimes (job-index (length unallocated-tasks))
 			(let ((job-tasks (aref unallocated-tasks job-index)))
 				(when (not (null job-tasks))
-					(setf sucessores (cons (result-allocate-task state (first job-tasks)) sucessores)))))
+					(let ((sucessor (result-allocate-task state (first job-tasks))))
+						(setf (job-state-previous-cost state) cost-parent-state)
+						(setf sucessores (cons sucessor sucessores))))))
 		sucessores))
 
 (defun state-max-depth (state)
@@ -164,7 +170,8 @@
 
 (defun cost-max-machines (state)
 	(let ((machines (job-state-machines state)))
-		(reduce #'max (map 'list (lambda (x) x) machines))))
+		(- (reduce #'max (map 'list (lambda (x) x) machines))
+		   (job-state-previous-cost state))))
 
 (defun cost-sum-machines (state)
 	(let ((machines (job-state-machines state)))
