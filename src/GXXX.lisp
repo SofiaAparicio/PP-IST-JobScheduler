@@ -138,14 +138,15 @@
 			  (+ task-time-start (job-shop-task-duration new-task)))))
 
 
-(defun job-shop-problem-to-job-state (problem);isto assume que nao haja tarefas concluidas
-    (let* ((num-machines (job-shop-problem-n.machines problem))
+(defun job-shop-problem-to-job-state (problem)
+    (flet ((order-by-task.nr (x y)  (< (job-shop-task-task.nr x) (job-shop-task-task.nr y))));garante que as tarefas sao ordenadas pelo task nr
+        (let* ((num-machines (job-shop-problem-n.machines problem))
     	   (num-jobs (job-shop-problem-n.jobs problem))
     	   (new-state (empty-job-state num-machines num-jobs)))
         (dolist (job (job-shop-problem-jobs problem))
             (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) 
-            	  (copy-list-tasks (job-shop-job-tasks job))))
-        new-state))
+            	  (sort (copy-list-tasks (job-shop-job-tasks job)) #'order-by-task.nr)))
+        new-state)))
 
 
 (defun convert-to-allocated-job(state)
