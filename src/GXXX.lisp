@@ -190,11 +190,16 @@
 ;Side-effects: None
 
 (defun heuristic-1 (state)
-	(let ((machines (job-state-machines object))
-		  (alloc (job-state-allocated-tasks object))
-		  (unnaloc (job-state-non-allocated-tasks object)))
-
-	1))
+	"Gets the maximum sum of the machines time with the remaining unllocated tasks"
+	(let* ((machines (job-state-machines state))
+		   (estimated-time (make-array (length machines) :initial-element 0))
+		   (unnaloc (job-state-non-allocated-tasks state)))
+		(dotimes (job-index (length unnaloc))
+			(dolist (task (aref unnaloc job-index))
+				(setf (aref estimated-time (job-shop-task-machine.nr task))
+					  (+ (aref estimated-time (job-shop-task-machine.nr task))
+					  	 (job-shop-task-machine.nr task)))))
+		(reduce #'max (map 'list (lambda (x) x) estimated-time))))
 
 ;Name: heuristic-2
 ;Arguments: ---
@@ -220,9 +225,7 @@
   (let ((estado-inicial (problema-estado-inicial problema))
         (objectivo? (problema-objectivo? problema))
         (caminho (list))
-        (found nil)
-        (*nos-gerados* 0)
-		(*nos-expandidos* 0))
+        (found nil))
       (labels ((send-random-probe (estado)
 			(print estado)
 			(cond ((null estado) (list)) 
@@ -301,15 +304,24 @@
 
 (defun calendarização ())
 
+(defvar *nos-gerados*)
+(defvar *nos-expandidos*)
+
 (defun resolve-problema (problem strategy)
 	(let ((initial-state (job-shop-problem-to-job-state problem))
 		  (result-state nil))
-		(setf result-state (procura (cria-problema initial-state 
+
+		(cond ((equal strategy "ilds") t)
+			  ((equal strategy "hybrid"))
+			  (t (setf result-state (procura (cria-problema initial-state 
 													(list #'operator)
 												   	:objectivo? #'objective? 
 												   	:heuristica #'heuristic-1) 
 												   	strategy))
-		(first (last (nth (- (length result-state) 4) result-state)))))
+			     (first (last (nth (- (length result-state) 4) result-state)))))))
+
+(defun testa-a-star (problema)
+	(resolve-problema problema "a*")-)
 
 (defun testa-profundidade (problema)
 	(resolve-problema problema "profundidade"))
