@@ -42,5 +42,5 @@
                                 (list #'operator)
                                 :objectivo? #'objective?
                                 :custo #'cost-max-machines
-                                :heuristica #'heuristic-2)
+                                :heuristica #'heuristic-1)
                                 "a*"))
