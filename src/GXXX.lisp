@@ -325,7 +325,7 @@
 			     (first (last (nth (- (length result-state) 4) result-state)))))))
 
 (defun testa-a-star (problema)
-	(resolve-problema problema "a*")-)
+	(resolve-problema problema "a*"))
 
 (defun testa-profundidade (problema)
 	(resolve-problema problema "profundidade"))
