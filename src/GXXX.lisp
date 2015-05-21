@@ -35,33 +35,14 @@
 ;FIXME renomear machine para machine -times
 (defstruct job-state machines wasted-time allocated-tasks non-allocated-tasks)
 
-#| (defmethod print-object ((object job-state) stream)
-	(labels ((print-array-jobs (initial-string jobs))
-		(format stream "~S" initial-string)
-		(dotimes (i (length jobs))
-			(format stream "     Job #~D ~%" i)
-				(dolist (task (aref jobs i))
-					(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
-						(job-shop-task-task.nr task) 
-						(job-shop-task-machine.nr task) 
-						(job-shop-task-start.time task) 
-						(job-shop-task-duration task)
-						(if (null (job-shop-task-start.time task))
-							-1
-							(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
-
-	(let ((machines (job-state-machines object))
-		  (wasted (job-state-wasted-time object))
-		  (alloc (job-state-allocated-tasks object))
-		  (unnaloc (job-state-non-allocated-tasks object)))
-
-		(dotimes (i (length machines))
-			(format stream "Machine ~D ends at ~D [Total wasted time: ~D] ~%" i (aref machines i) (aref wasted i)))
-		
-		(print-array-jobs "-- ALLOCATED TASKS -- ~%" alloc)
-		(print-array-jobs "-- NON-ALLOCATED TASKS -- ~%" unnalloc)))) |#
+(defun get-hash-job-state(state)
+	(print "CALLED HASH")
+	10)
+;	(job-state-allocated-tasks state))
 
 
+;(defun equal-job-states (state1 state2)
+;	(equalp (job-state-allocated-tasks state1) (job-state-allocated-tasks state2)))
 
 (defun empty-job-state (num-machines num-jobs)
 	(make-job-state :machines (make-array num-machines :initial-element 0)
@@ -354,3 +335,32 @@
 
 (defun testa-ilds ()
 	(resolve-problema (first *job-shop-problems*) "ilds")) ; TIAGO ADAPTA O RESOLVE PROBLEMA PARA ACEITAR OUTROS
+
+
+
+
+#| (defmethod print-object ((object job-state) stream)
+	(labels ((print-array-jobs (initial-string jobs))
+		(format stream "~S" initial-string)
+		(dotimes (i (length jobs))
+			(format stream "     Job #~D ~%" i)
+				(dolist (task (aref jobs i))
+					(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
+						(job-shop-task-task.nr task) 
+						(job-shop-task-machine.nr task) 
+						(job-shop-task-start.time task) 
+						(job-shop-task-duration task)
+						(if (null (job-shop-task-start.time task))
+							-1
+							(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
+
+	(let ((machines (job-state-machines object))
+		  (wasted (job-state-wasted-time object))
+		  (alloc (job-state-allocated-tasks object))
+		  (unnaloc (job-state-non-allocated-tasks object)))
+
+		(dotimes (i (length machines))
+			(format stream "Machine ~D ends at ~D [Total wasted time: ~D] ~%" i (aref machines i) (aref wasted i)))
+		
+		(print-array-jobs "-- ALLOCATED TASKS -- ~%" alloc)
+		(print-array-jobs "-- NON-ALLOCATED TASKS -- ~%" unnalloc)))) |#
