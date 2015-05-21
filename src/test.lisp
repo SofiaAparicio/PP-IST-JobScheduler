@@ -52,7 +52,7 @@
                                :TASKS (list 
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 3 :START.TIME NIL)))))))
 
-(defun test-prob-2 () (procura (cria-problema foo2
+(defun test-prob-2 () (procura (cria-problema bar
                                 (list #'operator)
                                 :objectivo? #'objective?
                                 :custo #'cost-max-machines

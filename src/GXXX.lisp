@@ -36,7 +36,7 @@
 (defstruct job-state machines wasted-time allocated-tasks non-allocated-tasks)
 
 (defun get-hash-job-state(state)
-	(print "CALLED HASH")
+	;(print "CALLED HASH")
 	10)
 ;	(job-state-allocated-tasks state))
 
