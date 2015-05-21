@@ -194,6 +194,7 @@
 ;Return: ---
 ;Side-effects: None
 
+; FAZ QUALQUER COISA <3
 (defun heuristic-1 (state)
 	"Gets the maximum sum of the machines time with the remaining unllocated tasks"
 	(let* ((machines (job-state-machines state))
@@ -206,13 +207,34 @@
 					  	 (job-shop-task-machine.nr task)))))
 		(reduce #'max (map 'list (lambda (x) x) estimated-time))))
 
+
+
 ;Name: heuristic-2
 ;Arguments: ---
 ;Return: ---
 ;Side-effects: None
 
-(defun heuristic-2 ())
+; NAO FAZ NADA <3 ESQUECEEEEEEEER
+(defun heuristic-2 (state)
+	"Gets the maximum sum of the machines time with the remaining unllocated tasks
+	 then sums the total differences to measure if the machines terminated at the same time"
+	(let* ((machines (job-state-machines state))
+		   (estimated-time (make-array (length machines) :initial-element 0))
+		   (unnaloc (job-state-non-allocated-tasks state))
+		   (wasted-time (job-state-wasted-time state))
+		   (max 0)
+		   (sum-differences 0)
+		   (sum-wasted-times (reduce #'+ (map 'list (lambda (x) x) wasted-time))))
 
+		(dotimes (job-index (length unnaloc))
+			(dolist (task (aref unnaloc job-index))
+				(setf (aref estimated-time (job-shop-task-machine.nr task))
+					  (+ (aref estimated-time (job-shop-task-machine.nr task))
+					  	 (job-shop-task-machine.nr task)))))
+		(setf max (reduce #'max (map 'list (lambda (x) x) estimated-time)))
+		(setf sum-differences (reduce #'+ (map 'list (lambda (x) (- max x)) estimated-time)))
+		(+ (* sum-wasted-times 0.25)
+		   (* sum-differences 0.75))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -315,25 +337,20 @@
 													(list #'operator)
 													:objectivo? #'objective? 
 													:heuristica #'heuristic-1))))
-			  ((equal strategy "hybrid"))
+			  ((equal strategy "hybrid") t)
 			  (t (setf result-state (procura (cria-problema initial-state 
 													(list #'operator)
 												   	:objectivo? #'objective? 
-												   	:heuristica #'heuristic-1
+												   	:heuristica #'heuristic-2
 												   	:custo #'cost-max-machines) 
 												   	strategy))
 			     (first (last (nth (- (length result-state) 4) result-state)))))))
 
-(defun testa-a-star (problema)
-	(resolve-problema problema "a*"))
+(defun testa-a-star ()
+	(resolve-problema (first *job-shop-problems*) "a*"))
 
-(defun testa-profundidade (problema)
-	(resolve-problema problema "profundidade"))
+(defun testa-profundidade ()
+	(resolve-problema (first *job-shop-problems*) "profundidade"))
 
-(defun testa-ilds (problema)
-	(resolve-problema problema "ilds")) ; TIAGO ADAPTA O RESOLVE PROBLEMA PARA ACEITAR OUTROS
-
-
-(setf t1 (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 0 :MACHINE.NR 2 :DURATION 1 :START.TIME NIL))
-(setf p1 (first *job-shop-problems*))
-(setf s1 (job-shop-problem-to-job-state p1))
+(defun testa-ilds ()
+	(resolve-problema (first *job-shop-problems*) "ilds")) ; TIAGO ADAPTA O RESOLVE PROBLEMA PARA ACEITAR OUTROS
