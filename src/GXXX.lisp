@@ -181,9 +181,13 @@
 	depth))
 
 
-(defun cost (state)
+(defun cost-max-machines (state)
 	(let ((machines (job-state-machines state)))
 		(reduce #'max (map 'list (lambda (x) x) machines))))
+
+(defun cost-sum-machines (state)
+	(let ((machines (job-state-machines state)))
+		(reduce #'+ (map 'list (lambda (x) x) machines))))
 
 ;Name: heuristic-1
 ;Arguments: ---
@@ -263,13 +267,7 @@
 						(cond ((equal descrepancy profundidade-maxima) result);caso seja resultado vazio e ja' nao haja mais descrepancias a fazer, e' mesmo vazio
 								((null result) (descrepancy-loop state (+ descrepancy 1)));se houver descrepancias a fazer, fa'-las e chama de novo
 								(t result)))));encontrou a solucao)
-			(descrepancy-loop state 0))))
-			
-(defun bar (initial-state) 
-	(ILDS-job-shop (cria-problema initial-state 	(list #'operator)
-													:objectivo? #'objective? 
-													:heuristica #'heuristic-1)))
-			
+			(descrepancy-loop state 0))))			
 		
 
 ;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
@@ -312,12 +310,17 @@
 	(let ((initial-state (job-shop-problem-to-job-state problem))
 		  (result-state nil))
 
-		(cond ((equal strategy "ilds") t)
+		(cond ((equal strategy "ilds") 
+				(setf result-state (ILDS-job-shop (cria-problema initial-state 	
+													(list #'operator)
+													:objectivo? #'objective? 
+													:heuristica #'heuristic-1))))
 			  ((equal strategy "hybrid"))
 			  (t (setf result-state (procura (cria-problema initial-state 
 													(list #'operator)
 												   	:objectivo? #'objective? 
-												   	:heuristica #'heuristic-1) 
+												   	:heuristica #'heuristic-1
+												   	:custo #'cost-max-machines) 
 												   	strategy))
 			     (first (last (nth (- (length result-state) 4) result-state)))))))
 
