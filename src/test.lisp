@@ -60,7 +60,7 @@
                                 (list #'operator)
                                 :objectivo? #'objective?
                                 :custo #'cost-max-machines
-                                :hash #'get-hash-job-state
+                                ;:hash #'get-hash-job-state
                                 ;(:estado= #'equal-job-states
                                 :heuristica #'heuristic-1)
                                 "a*"

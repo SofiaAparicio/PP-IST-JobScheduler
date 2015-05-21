@@ -168,14 +168,14 @@
 	depth))
 
 
-(defun cost-max-machines (state)
-	(let ((machines (job-state-machines state)))
-		(- (reduce #'max (map 'list (lambda (x) x) machines))
-		   (job-state-previous-cost state))))
+(defun machines-max-time (state)
+	(reduce #'max (map 'list (lambda (x) x) (job-state-machines state))))
 
-(defun cost-sum-machines (state)
-	(let ((machines (job-state-machines state)))
-		(reduce #'+ (map 'list (lambda (x) x) machines))))
+(defun cost-max-machines (state)
+	(- (machines-max-time state)
+	   (job-state-previous-cost state)))
+
+
 
 ;Name: heuristic-1
 ;Arguments: ---
@@ -223,6 +223,30 @@
 		(setf sum-differences (reduce #'+ (map 'list (lambda (x) (- max x)) estimated-time)))
 		(+ (* sum-wasted-times 0.25)
 		   (* sum-differences 0.75))))
+
+(defun heuristic-3 (state)
+	(let ((num-unallocated-tasks 0)
+		  (total-tasks 0)
+		  (max-time-machines (machines-max-time state))
+		  (sum-durations-non-allocated-tasks 0)
+		  (num-machines (length (job-state-machines state)))
+		  (alloc (job-state-allocated-tasks state))
+		  (unalloc (job-state-non-allocated-tasks state)))
+
+		;(print "hre")
+		(dotimes (job-index (length unalloc))
+			(dolist (task (aref unalloc job-index))
+				(incf num-unallocated-tasks)
+				(incf total-tasks)
+				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (job-shop-task-duration task)))))
+
+		;(print "hre2")
+		(dotimes (job-index (length alloc))
+			(setf total-tasks (+ total-tasks (length (aref alloc job-index)))))
+
+		(* (/ num-unallocated-tasks total-tasks)
+		   (/ (+ max-time-machines sum-durations-non-allocated-tasks)
+		   	  num-machines))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
