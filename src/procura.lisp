@@ -623,7 +623,7 @@ Estrategia A*."
     (junta-no-expandido espaco no)
     
     (when (= 0 (mod *nos-expandidos* 1000))
-      (print *nos-expandidos*))
+      (format t "~D~%" *nos-expandidos*))
 
     ;; Finalmente, juntamos aos abertos os nos cujos estados ainda nao
     ;; existem no espaco (os nos mais recentes vao para o fim da

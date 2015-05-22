@@ -144,13 +144,13 @@
 (defun operator (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
 		  (sucessores (list))
-		  (cost-parent-state (cost-max-machines state)))
+		  (cost-parent-state (machines-max-time state)))
 
 		(dotimes (job-index (length unallocated-tasks))
 			(let ((job-tasks (aref unallocated-tasks job-index)))
 				(when (not (null job-tasks))
 					(let ((sucessor (result-allocate-task state (first job-tasks))))
-						(setf (job-state-previous-cost state) cost-parent-state)
+						(setf (job-state-previous-cost sucessor) cost-parent-state)
 						(setf sucessores (cons sucessor sucessores))))))
 		sucessores))
 
@@ -164,7 +164,7 @@
 (defun machines-max-time (state)
 	(reduce #'max (map 'list (lambda (x) x) (job-state-machines state))))
 
-(defun cost-max-machines (state)
+(defun cost-transition-max-machines (state)
 	(- (machines-max-time state)
 	   (job-state-previous-cost state)))
 
@@ -296,19 +296,25 @@
 		  (result-state nil)
 		  (*nos-gerados* 0)
 		  (*nos-expandidos* 0))
-		(setf result-state (cond 
-							((equal strategy "1");"melhor.abordagem") 
-								(first (last (first (cal-melhor-abordagem initial-state)))))
-							((equal strategy "2");"a*.melhor.heuristica") 
-								(first (last (first (cal-a-start-melhor-heuristica initial-state)))))
-							((equal strategy "3");a*.melhor.heuristica.alternativa") 
-								(first (last (first (cal-a-start-melhor-heuristica-alternativa initial-state)))))
-							((equal strategy "4") ; sondagem.iterativa") 
-								(first (last (cal-sondagem-iterativa initial-state))))
-							((equal strategy "5"); ILDS") 
-								(cal-ilds initial-state))
-							((equal strategy "6");abordagem.alternativa") 
-								t)))
+		(cond 
+			((equal strategy "1");"melhor.abordagem") 
+				(setf result-state (cal-melhor-abordagem initial-state))
+				(setf *nos-gerados* (fourth result-state))
+				(setf *nos-expandidos* (third result-state))
+				;(setf result-state (first (last (first result-state))))
+				)
+			((equal strategy "2");"a*.melhor.heuristica") 
+				(first (last (first (cal-a-start-melhor-heuristica initial-state)))))
+			((equal strategy "3");a*.melhor.heuristica.alternativa") 
+				(first (last (first (cal-a-start-melhor-heuristica-alternativa initial-state)))))
+			((equal strategy "4") ; sondagem.iterativa") 
+				(first (last (cal-sondagem-iterativa initial-state))))
+			((equal strategy "5"); ILDS") 
+				(cal-ilds initial-state))
+			((equal strategy "6");abordagem.alternativa") 
+				t))
+
+		(format t "~%Nos gerados: ~D Nos expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 		result-state))
 
 
@@ -318,7 +324,7 @@
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
-			   	:custo #'cost-max-machines)
+			   	:custo #'cost-transition-max-machines)
 			"a*"))
 
 
@@ -327,7 +333,7 @@
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
-			   	:custo #'cost-max-machines) 
+			   	:custo #'cost-transition-max-machines) 
 		   	"a*"))
 
 (defun cal-a-start-melhor-heuristica-alternativa (initial-state)
@@ -335,14 +341,14 @@
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
-			   	:custo #'cost-max-machines) 
+			   	:custo #'cost-transition-max-machines) 
 		   	"a*"))
 
 (defun cal-sondagem-iterativa (initial-state)
 	(sondagem-iterativa (cria-problema initial-state (list #'operator) :objectivo? #'objective?)))
 
 (defun cal-ilds (initial-state)
-	(ILDS-job-shop (cria-problema initial-state 	
+	(ILDS-job-shop (cria-problema initial-state
 							(list #'operator)
 							:objectivo? #'objective? 
 							:heuristica #'heuristic-3)))
