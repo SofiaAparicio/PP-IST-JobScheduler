@@ -25,6 +25,8 @@
 
 (defstruct task-compact machine.nr duration start.time)
 
+(defun equals-job-states (state1 state2)
+	(equalp (job-state-allocated-tasks state1) (job-state-non-allocated-tasks state2)))
 
 (defun get-hash-job-state (state)
 	;(print "CALLED HASH")
@@ -183,20 +185,9 @@
 	(- (machines-max-time state)
 	   (job-state-previous-cost state)))
 
-(defvar per1 0.79)
-(defvar per2 0.21)
 
-(defun calculate-best-parameters ()
-	(let ((probs (list prof1 prof2 prof3 prof4 prof5)))
-	(dotimes (i 10)
-		(format t "--- per1: ~S per2: ~S ---~%" per1 per2)
-		(let ((initial-time (get-internal-run-time)))
-			(dolist (p probs)
-				(calendarização p "1"))
-			(setf per1 (- per1 0.01))
-			(setf per2 (+ per2 0.01))
-			(format t "--- ~S units of time ---~%" (- (get-internal-run-time) initial-time))
-			(format t "------------------------~%")))))
+
+
 
 
 ;Name: heuristic-1
@@ -216,8 +207,14 @@
 					  	 (task-compact-duration task)))))
 		(- (determine-max-value-array estimated-time) (determine-max-value-array machines))))
 
+;(defvar per1 0.79)
+;(defvar per2 0.21)
+
+(defvar per1 0.55)
+(defvar per2 0.45)
+
 (defun heuristic-2 (state)
-	"Dar prioridade às tarefas mais longas primeiro"
+	"Peso relativo entre se as tarefas vao ser executas em paralelo ou não ignorando as restricões de máquinas"
 	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
 		   (sum-durations-non-allocated-tasks 0)
 		   (num-machines (length (job-state-machines state)))
@@ -231,37 +228,62 @@
 	   (+ (* per1 sum-durations-non-allocated-tasks)
 	   	  (* per2 (/ sum-durations-non-allocated-tasks num-machines)))))
 
+(defun calculate-best-parameters ()
+	(let ((probs (make-array 5 :initial-contents (list prof1 prof2 prof3 prof4 prof5)))
+		  (current-best 99999999)
+		  (best-pair nil))
+		(dotimes (i 10)
+			(format t "@@@ LAST BEST PARAMETERS ~S ~%" best-pair)
+			(format t "---------------------------- ~%")
+			(format t "--- per1: ~S per2: ~S ---~%" per1 per2)
+			(let ((initial-time (get-internal-run-time))
+				  (sum-costs 0))
+				(dotimes (pi 5)
+					(let* ((p (aref probs pi))
+						   (cost (machines-max-time (first (last (first (calendarização p "1")))))))
+						(setf sum-costs (+ sum-costs cost))
+						
 
-(defun heuristic-3 (state)
-	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
-		   (total-tasks (+ num-unallocated-tasks (job-state-num-alloc state)))
-		   (max-time-machines (machines-max-time state))
-		   (sum-durations-non-allocated-tasks 0)
-		   (num-machines (length (job-state-machines state)))
-		   (unalloc (job-state-non-allocated-tasks state)))
-
-		;(print "hre")
-		(dotimes (job-index (length unalloc))
-			(dolist (task (aref unalloc job-index))
-				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (task-compact-duration task)))))
-
-		;(- 
-			(* (/ num-unallocated-tasks total-tasks)
-		   (/ (+ max-time-machines sum-durations-non-allocated-tasks)
-		   	  num-machines)) (machines-max-time state)))
-	;)
+						;(format t ">>> ~S units of time <<< ~%" (- (get-internal-run-time) initial-time))
+						(format t "------------------------~%")
+						))
+				(format t "sum-costs ~d~%" sum-costs)
+						(when (< sum-costs current-best)
+							(format t "current-best ~d -> ~d~%" current-best sum-costs)
+							(setf current-best sum-costs)
+							(setf best-pair (cons per1 per2))))
+			(setf per1 (- per1 0.05))
+			(setf per2 (+ per2 0.05)))
+	current-best))
 
 (defun heuristic-4 (state)
-	"Gets the maximum sum of the machines time with the remaining unllocated tasks but tries to predict paralellism"
-	(let* ((machines (job-state-machines state))
-		   (estimated-time (make-array (length machines) :initial-element 0))
-		   (unnaloc (job-state-non-allocated-tasks state)))
-		(dotimes (job-index (length unnaloc))
-			(dolist (task (aref unnaloc job-index))
-				(setf (aref estimated-time (task-compact-machine.nr task))
-					  (+ (aref estimated-time (task-compact-machine.nr task))
-					  	 (task-compact-machine.nr task)))))
-		(- (determine-max-value-array estimated-time) (machines-max-time state))))
+	(let* ((unnaloc (job-state-non-allocated-tasks state))
+   		   (job-time (make-array (length unnaloc) :initial-element 0))
+   		   (num-differents-machines (make-array (length unnaloc) :initial-element (list)))
+   		   (remaining-time 0))
+
+	(dotimes (job-index (length unnaloc))
+		(dolist (task (aref unnaloc job-index))
+			(let ((machine-nr (task-compact-machine.nr task)))
+				(setf (aref job-time job-index)
+					  (+ (aref job-time job-index)
+					  	 (task-compact-duration task)))
+				
+				(when (null (find machine-nr (aref num-differents-machines job-index)))
+					  (setf (aref num-differents-machines job-index) (cons machine-nr  (aref num-differents-machines job-index))))))
+;				(print "------")
+;				(print task)
+;				(print num-differents-machines)
+;				(print job-time)))
+
+			(when (not (null (aref num-differents-machines job-index)))
+				(setf remaining-time 
+					  (+ remaining-time 
+					     (+ (* 0.6 (aref job-time job-index))
+					     	(* 0.4 (/ (aref job-time job-index)
+					     			   	  (length (aref num-differents-machines job-index)))))))))()
+
+	remaining-time))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -380,7 +402,7 @@
 			((equal strategy "6");abordagem.alternativa") 
 				t))
 
-		(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
+		;(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 		result-state))
 
 (defun calc-heur (lst)
@@ -396,6 +418,7 @@
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-2
+			   	:estado= #'equals-job-states
 			   	:custo #'cost-transition-max-machines)
 			"a*"
 			:espaco-em-arvore? t))
@@ -405,7 +428,8 @@
 	 (procura (cria-problema initial-state 
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-1
+			   	:heuristica #'heuristic-4
+			   	:estado= #'equals-job-states
 			   	:custo #'cost-transition-max-machines) 
 		   	"a*"
 		   	:espaco-em-arvore? t))
