@@ -23,6 +23,9 @@
 ;FIXME renomear machine para machine -times
 (defstruct job-state machines previous-cost wasted-time allocated-tasks num-alloc non-allocated-tasks num-unalloc)
 
+(defstruct task-compact machine.nr duration start.time)
+
+
 (defun get-hash-job-state (state)
 	;(print "CALLED HASH")
 	10)
@@ -40,6 +43,16 @@
 					:num-alloc 0
 					:non-allocated-tasks (make-array num-jobs :initial-element (list))
 					:num-unalloc 0))
+
+(defun job-shop-task-to-task-compact (task)
+	(make-task-compact
+		:machine.nr (job-shop-task-machine.nr task)
+		:duration (job-shop-task-duration task)
+		:start.time (job-shop-task-start.time task)))
+
+(defun convert-list-job-shop-tasks-to-list-task-compact (lst)
+	(map 'list (lambda (x) (job-shop-task-to-task-compact x)) lst))
+
 
 (defun copy-list-tasks (list-tasks)
 	(if (null list-tasks)
@@ -64,32 +77,29 @@
 		:num-unalloc (job-state-num-unalloc state)))
 
 (defun copy-task (task)
-	(make-job-shop-task 
-		:job.nr (job-shop-task-job.nr task)
-   		:task.nr (job-shop-task-task.nr task)
-   		:machine.nr (job-shop-task-machine.nr task)
-   		:duration (job-shop-task-duration task)
-   		:start.time (job-shop-task-start.time task)))
+	(make-task-compact 
+		:machine.nr (task-compact-machine.nr task)
+   		:duration (task-compact-duration task)
+   		:start.time (task-compact-start.time task)))
 
-(defun determine-start-time (state task)
-	(let ((machine-time (aref (job-state-machines state) (job-shop-task-machine.nr task)))
+(defun determine-start-time (state job-number task)
+	(let ((machine-time (aref (job-state-machines state) (task-compact-machine.nr task)))
 		  (precedence-time 0)
-		  (last-precedence-task (first (aref (job-state-allocated-tasks state) (job-shop-task-job.nr task)))))
+		  (last-precedence-task (first (aref (job-state-allocated-tasks state) job-number))))
 		(when last-precedence-task;if there is a precedence task
-			(setf precedence-time (+ (job-shop-task-start.time last-precedence-task) (job-shop-task-duration last-precedence-task))))
+			(setf precedence-time (+ (task-compact-start.time last-precedence-task) (task-compact-duration last-precedence-task))))
 		(max machine-time precedence-time)))
 
-(defun result-allocate-task (state task)
+(defun result-allocate-task (state job-number)
 	(let ((copy-state (create-copy-job-state state)))
-		(allocate-task! copy-state task)
+		(allocate-task! copy-state job-number)
 		copy-state))
 
 ;chamar isto quando se fazer a conversao do problema para o estado e se nao tiver start-time a nil 
-(defun allocate-task! (state task)
-	(let* ((task-time-start (determine-start-time state task))
-		   (job-number (job-shop-task-job.nr task))
-		   (new-task (copy-task task))
-		   (machine-nr (job-shop-task-machine.nr new-task))
+(defun allocate-task! (state job-number)
+	(let* ((task (first (aref (job-state-non-allocated-tasks state) job-number)))
+		   (task-time-start (determine-start-time state job-number task))
+		   (machine-nr (task-compact-machine.nr task))
 		   (wasted-time (- task-time-start
 		   				   (aref (job-state-machines state) machine-nr))))
 		
@@ -103,18 +113,18 @@
 
 		;remove task from unallocated tasks
 		(setf (aref (job-state-non-allocated-tasks state) job-number) 
-			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))		
+			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))
 		
 		;update starttime of the new task
-		(setf (job-shop-task-start.time new-task) task-time-start)		
+		(setf (task-compact-start.time task) task-time-start)		
 		
 		;update allocated tasks
 		(setf (aref (job-state-allocated-tasks state) job-number) 
-			  (cons new-task (aref (job-state-allocated-tasks state) job-number)))
+			  (cons task (aref (job-state-allocated-tasks state) job-number)))
 
 		;update machines times
 		(setf (aref (job-state-machines state) machine-nr)  
-			  (+ task-time-start (job-shop-task-duration new-task)))))
+			  (+ task-time-start (task-compact-duration task)))))
 
 
 (defun job-shop-problem-to-job-state (problem)
@@ -124,8 +134,8 @@
     	   (new-state (empty-job-state num-machines num-jobs)))
         (dolist (job (job-shop-problem-jobs problem))
         	(setf (job-state-num-unalloc new-state) (+ (job-state-num-unalloc new-state) (length (job-shop-job-tasks job))))
-            (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) 
-            	  (sort (copy-list-tasks (job-shop-job-tasks job)) #'order-by-task.nr)))
+            (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job))
+            	  (convert-list-job-shop-tasks-to-list-task-compact (sort (job-shop-job-tasks job) #'order-by-task.nr))))
         new-state)))
 
 
@@ -141,17 +151,18 @@
 (defun objective? (state)
 	(= 0 (job-state-num-unalloc state)))
 
+;(time (operator (job-shop-problem-to-job-state bar)))
+
 (defun operator (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
 		  (sucessores (list))
 		  (cost-parent-state (machines-max-time state)))
 
 		(dotimes (job-index (length unallocated-tasks))
-			(let ((job-tasks (aref unallocated-tasks job-index)))
-				(when (not (null job-tasks))
-					(let ((sucessor (result-allocate-task state (first job-tasks))))
-						(setf (job-state-previous-cost sucessor) cost-parent-state)
-						(setf sucessores (cons sucessor sucessores))))))
+			(when (not (null (aref unallocated-tasks job-index)))
+				(let ((sucessor (result-allocate-task state job-index)))
+					(setf (job-state-previous-cost sucessor) cost-parent-state)
+					(setf sucessores (cons sucessor sucessores)))))
 		sucessores))
 
 (defun state-max-depth (state)
@@ -183,9 +194,9 @@
 		   (unnaloc (job-state-non-allocated-tasks state)))
 		(dotimes (job-index (length unnaloc))
 			(dolist (task (aref unnaloc job-index))
-				(setf (aref estimated-time (job-shop-task-machine.nr task))
-					  (+ (aref estimated-time (job-shop-task-machine.nr task))
-					  	 (job-shop-task-machine.nr task)))))
+				(setf (aref estimated-time (task-compact-machine.nr task))
+					  (+ (aref estimated-time (task-compact-machine.nr task))
+					  	 (task-compact-machine.nr task)))))
 		(reduce #'max (map 'list (lambda (x) x) estimated-time))))
 
 
@@ -200,7 +211,7 @@
 		;(print "hre")
 		(dotimes (job-index (length unalloc))
 			(dolist (task (aref unalloc job-index))
-				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (job-shop-task-duration task)))))
+				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (task-compact-duration task)))))
 
 		(* (/ num-unallocated-tasks total-tasks)
 		   (/ (+ max-time-machines sum-durations-non-allocated-tasks)
@@ -314,7 +325,7 @@
 			((equal strategy "6");abordagem.alternativa") 
 				t))
 
-		(format t "~%Nos gerados: ~D Nos expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
+		(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 		result-state))
 
 
