@@ -44,3 +44,7 @@
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 2 :TASK.NR 3 :MACHINE.NR 0 :DURATION 9 :START.TIME NIL))))))
 
 (defvar prof1 (first *job-shop-problems*))
+(defvar prof2 (second *job-shop-problems*))
+(defvar prof3 (third *job-shop-problems*))
+(defvar prof4 (fourth *job-shop-problems*))
+(defvar prof5 (fifth *job-shop-problems*))

@@ -190,7 +190,6 @@
 ;Return: ---
 ;Side-effects: None
 
-; FAZ QUALQUER COISA <3
 (defun heuristic-1 (state)
 	"Gets the maximum sum of the machines time with the remaining unllocated tasks"
 	(let* ((machines (job-state-machines state))
@@ -201,7 +200,21 @@
 				(setf (aref estimated-time (task-compact-machine.nr task))
 					  (+ (aref estimated-time (task-compact-machine.nr task))
 					  	 (task-compact-machine.nr task)))))
-		(determine-max-value-array estimated-time)))
+		(- (determine-max-value-array estimated-time) (machines-max-time state))))
+
+(defun heuristic-2 (state)
+	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
+		   (sum-durations-non-allocated-tasks 0)
+		   (num-machines (length (job-state-machines state)))
+		   (unalloc (job-state-non-allocated-tasks state)))
+
+		;(print "hre")
+		(dotimes (job-index (length unalloc))
+			(dolist (task (aref unalloc job-index))
+				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (task-compact-duration task)))))
+
+	   (+ (* 0.75 sum-durations-non-allocated-tasks)
+	   	  (* 0.25 (/ sum-durations-non-allocated-tasks num-machines)))))
 
 
 (defun heuristic-3 (state)
@@ -217,9 +230,11 @@
 			(dolist (task (aref unalloc job-index))
 				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (task-compact-duration task)))))
 
-		(* (/ num-unallocated-tasks total-tasks)
+		;(- 
+			(* (/ num-unallocated-tasks total-tasks)
 		   (/ (+ max-time-machines sum-durations-non-allocated-tasks)
-		   	  num-machines))))
+		   	  num-machines)) (machines-max-time state)))
+	;)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -249,8 +264,7 @@
 				  (t (let ((sucessor-aleatorio (random-element (problema-gera-sucessores problema estado))))
 						(append (list sucessor-aleatorio) (send-random-probe sucessor-aleatorio)))))))						
 		(loop while (not found)
-			do
-			   (setf caminho (send-random-probe initial-state)))
+			do (setf caminho (send-random-probe initial-state)))
 		   ;(print "-----------------")
 			caminho))))
 
@@ -316,12 +330,22 @@
 				(setf result-state (cal-melhor-abordagem initial-state))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
-				;(setf result-state (first (last (first result-state))))
+				(setf result-state (first (last (first result-state))))
 				)
 			((equal strategy "2");"a*.melhor.heuristica") 
-				(first (last (first (cal-a-start-melhor-heuristica initial-state)))))
+				(setf result-state (cal-a-start-melhor-heuristica initial-state))
+				(setf *nos-gerados* (fourth result-state))
+				(setf *nos-expandidos* (third result-state))
+				(setf result-state (first (last (first result-state))))
+				)
+
+				
 			((equal strategy "3");a*.melhor.heuristica.alternativa") 
-				(first (last (first (cal-a-start-melhor-heuristica-alternativa initial-state)))))
+				(setf result-state (cal-a-start-melhor-heuristica-alternativa initial-state))
+				(setf *nos-gerados* (fourth result-state))
+				(setf *nos-expandidos* (third result-state))
+				(setf result-state (first (last (first result-state))))
+				)
 			((equal strategy "4") ; sondagem.iterativa") 
 				(first (last (cal-sondagem-iterativa initial-state))))
 			((equal strategy "5"); ILDS") 
@@ -338,7 +362,7 @@
 	 (procura (cria-problema initial-state 
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-3
+			   	:heuristica #'heuristic-1
 			   	:custo #'cost-transition-max-machines)
 			"a*"
 			:espaco-em-arvore? t))
@@ -348,7 +372,7 @@
 	 (procura (cria-problema initial-state 
 		 		(list #'operator)
 			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-3
+			   	:heuristica #'heuristic-2
 			   	:custo #'cost-transition-max-machines) 
 		   	"a*"
 		   	:espaco-em-arvore? t))
