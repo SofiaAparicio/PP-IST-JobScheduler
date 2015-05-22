@@ -622,6 +622,9 @@ Estrategia A*."
     ;; O no ja foi expandido, por isso passa para os expandidos
     (junta-no-expandido espaco no)
     
+    (when (= 0 (mod *nos-expandidos* 1000))
+      (print *nos-expandidos*))
+
     ;; Finalmente, juntamos aos abertos os nos cujos estados ainda nao
     ;; existem no espaco (os nos mais recentes vao para o fim da
     ;; lista)
@@ -806,6 +809,9 @@ Estrategia A*."
 		       ((= prof-actual profundidade-maxima) nil)
 		       ((esta-no-caminho? estado caminho) nil)
 		       (t 
+;            (print "--- DFS: GERAR SUCESSORES PARA ---")
+;            (print estado)
+
 			(dolist (suc (problema-gera-sucessores problema
 							       estado))
 			  ;; avancamos recursivamente, em profundidade,

@@ -10,23 +10,11 @@
 
 (in-package :user)
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; UTILITARY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun random-element (list)
-  "Return some element of the list, chosen at random."
-  (if (= (length list) 0)
-	  nil
-	  (nth (random (length list)) list)))
-
-(defun last-element-array (array)
-	(let ((l (length array)))
-		(if (= l 0)
-			nil
-			(aref array (- (length array) 1)))))
+;; TODO TODO TODO TODO
+; ORDENAR JOBS
+; CORRIGIR ILDS
+; HEURISTICAS
+; ABORDAGEM ALTERNATIVA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  STRUCTURE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,7 +23,7 @@
 ;FIXME renomear machine para machine -times
 (defstruct job-state machines previous-cost wasted-time allocated-tasks num-alloc non-allocated-tasks num-unalloc)
 
-(defun get-hash-job-state(state)
+(defun get-hash-job-state (state)
 	;(print "CALLED HASH")
 	10)
 ;	(job-state-allocated-tasks state))
@@ -201,34 +189,6 @@
 		(reduce #'max (map 'list (lambda (x) x) estimated-time))))
 
 
-
-;Name: heuristic-2
-;Arguments: ---
-;Return: ---
-;Side-effects: None
-
-; NAO FAZ NADA <3 ESQUECEEEEEEEER
-(defun heuristic-2 (state)
-	"Gets the maximum sum of the machines time with the remaining unllocated tasks
-	 then sums the total differences to measure if the machines terminated at the same time"
-	(let* ((machines (job-state-machines state))
-		   (estimated-time (make-array (length machines) :initial-element 0))
-		   (unnaloc (job-state-non-allocated-tasks state))
-		   (wasted-time (job-state-wasted-time state))
-		   (max 0)
-		   (sum-differences 0)
-		   (sum-wasted-times (reduce #'+ (map 'list (lambda (x) x) wasted-time))))
-
-		(dotimes (job-index (length unnaloc))
-			(dolist (task (aref unnaloc job-index))
-				(setf (aref estimated-time (job-shop-task-machine.nr task))
-					  (+ (aref estimated-time (job-shop-task-machine.nr task))
-					  	 (job-shop-task-machine.nr task)))))
-		(setf max (reduce #'max (map 'list (lambda (x) x) estimated-time)))
-		(setf sum-differences (reduce #'+ (map 'list (lambda (x) (- max x)) estimated-time)))
-		(+ (* sum-wasted-times 0.25)
-		   (* sum-differences 0.75))))
-
 (defun heuristic-3 (state)
 	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
 		   (total-tasks (+ num-unallocated-tasks (job-state-num-alloc state)))
@@ -258,56 +218,54 @@
 ; de becos sem saida atraves da propagacao de restricoes
 ; Slide aula11 e aula12
     
-(defun sondagem-iterativa (problema) 
-  (let ((estado-inicial (problema-estado-inicial problema))
+(defun sondagem-iterativa (problema)
+	(flet ((random-element (list)
+			  (if (= (length list) 0)
+				  nil
+				  (nth (random (length list)) list))))
+  (let ((initial-state (problema-estado-inicial problema))
         (objectivo? (problema-objectivo? problema))
         (caminho (list))
         (found nil))
       (labels ((send-random-probe (estado)
-			(print estado)
+			;((print estado)
 			(cond ((null estado) (list)) 
 				  ((funcall objectivo? estado) (setf found t) (list estado))
 				  (t (let ((sucessor-aleatorio (random-element (problema-gera-sucessores problema estado))))
-						(list sucessor-aleatorio (send-random-probe sucessor-aleatorio)))))))						
-		(loop while (not found) 
+						(append (list sucessor-aleatorio) (send-random-probe sucessor-aleatorio)))))))						
+		(loop while (not found)
 			do
-			   (setf caminho (send-random-probe estado-inicial)))
-		   (print "-----------------")
-			caminho)))
+			   (setf caminho (send-random-probe initial-state)))
+		   ;(print "-----------------")
+			caminho))))
 
 (defun 	ILDS-job-shop (problema)
-	(let* ((state (problem-to-job-state (problema-estado-inicial problema)))
-		  (objectivo? (problema-objectivo? problema))
-		  (heuristica (problema-heuristica problema))
-		  (profundidade-maxima (state-max-depth state)))
+	"improved-limited-discrepancy-search"
+	(let* ((state (problema-estado-inicial problema))
+		   (objectivo? (problema-objectivo? problema))
+		   (heuristica (problema-heuristica problema))
+		   (profundidade-maxima (state-max-depth state)))
 		(labels ((bigger-heuristic (state1 state2)
 					(> (funcall heuristica state1) (funcall heuristica state2)))
 				(ILDS-Descrepancia (estado descrepancia &optional (profundidade-actual 0)) 
 					(if (funcall objectivo? estado)
 						estado
-					(let* ((sucessores  (problema-gera-sucessores problema state))
-						  (n-sucessores (length sucessores)))
-						(if (equal 0 n-sucessores) 
-							nil
-							(progn (sort sucessores #'bigger-heuristic);alegadamente destrutiva
-									(when (not (>= (+ profundidade-actual descrepancia) profundidade-maxima))
-										(ILDS-Descrepancia (first sucessores) descrepancia (+ profundidade-actual 1)))
-									(dolist (sucessor (rest sucessores))
-										(ILDS-Descrepancia sucessor (- descrepancia 1) (+ profundidade-actual 1))))))))
+						(let* ((sucessores  (problema-gera-sucessores problema state))
+							   (n-sucessores (length sucessores)))
+							(if (equal 0 n-sucessores)
+								nil
+								(progn (sort sucessores #'bigger-heuristic);alegadamente destrutiva
+									   (when (not (>= (+ profundidade-actual descrepancia) profundidade-maxima))
+											(ILDS-Descrepancia (first sucessores) descrepancia (+ profundidade-actual 1)))
+									    (dolist (sucessor (rest sucessores))
+											(ILDS-Descrepancia sucessor (- descrepancia 1) (+ profundidade-actual 1))))))))
 				(descrepancy-loop (state descrepancy)
 					(let ((result (ILDS-Descrepancia state descrepancy)))
 						(cond ((equal descrepancy profundidade-maxima) result);caso seja resultado vazio e ja' nao haja mais descrepancias a fazer, e' mesmo vazio
 								((null result) (descrepancy-loop state (+ descrepancy 1)));se houver descrepancias a fazer, fa'-las e chama de novo
 								(t result)))));encontrou a solucao)
-			(descrepancy-loop state 0))))			
+			(descrepancy-loop state 0))))
 		
-
-;Name: improved-limited-discrepancy-search (estratégia de discrepância melhorada ILDS)
-;Arguments: ---
-;Return: ---
-;Side-effects: None
-
-(defun improved-limited-discrepancy-search ())
 
 ;Name: EXTRA STRATEGY TO BE DEFINED LATER
 ;Arguments: ---
@@ -333,63 +291,58 @@
 ;Return: The external representation of the solution
 ;Side-effects: None
 
-(defun calendarização ())
-
-(defvar *nos-gerados*)
-(defvar *nos-expandidos*)
-
-(defun resolve-problema (problem strategy)
+(defun calendarização (problem strategy)
 	(let ((initial-state (job-shop-problem-to-job-state problem))
-		  (result-state nil))
-
-		(cond ((equal strategy "ilds") 
-				(setf result-state (ILDS-job-shop (cria-problema initial-state 	
-													(list #'operator)
-													:objectivo? #'objective? 
-													:heuristica #'heuristic-1))))
-			  ((equal strategy "hybrid") t)
-			  (t (setf result-state (procura (cria-problema initial-state 
-													(list #'operator)
-												   	:objectivo? #'objective? 
-												   	:heuristica #'heuristic-2
-												   	:custo #'cost-max-machines) 
-												   	strategy))
-			     (first (last (nth (- (length result-state) 4) result-state)))))))
-
-(defun testa-a-star ()
-	(resolve-problema (first *job-shop-problems*) "a*"))
-
-(defun testa-profundidade ()
-	(resolve-problema (first *job-shop-problems*) "profundidade"))
-
-(defun testa-ilds ()
-	(resolve-problema (first *job-shop-problems*) "ilds")) ; TIAGO ADAPTA O RESOLVE PROBLEMA PARA ACEITAR OUTROS
+		  (result-state nil)
+		  (*nos-gerados* 0)
+		  (*nos-expandidos* 0))
+		(setf result-state (cond 
+							((equal strategy "1");"melhor.abordagem") 
+								(first (last (first (cal-melhor-abordagem initial-state)))))
+							((equal strategy "2");"a*.melhor.heuristica") 
+								(first (last (first (cal-a-start-melhor-heuristica initial-state)))))
+							((equal strategy "3");a*.melhor.heuristica.alternativa") 
+								(first (last (first (cal-a-start-melhor-heuristica-alternativa initial-state)))))
+							((equal strategy "4") ; sondagem.iterativa") 
+								(first (last (cal-sondagem-iterativa initial-state))))
+							((equal strategy "5"); ILDS") 
+								(cal-ilds initial-state))
+							((equal strategy "6");abordagem.alternativa") 
+								t)))
+		result-state))
 
 
 
+(defun cal-melhor-abordagem (initial-state)
+	 (procura (cria-problema initial-state 
+		 		(list #'operator)
+			   	:objectivo? #'objective? 
+			   	:heuristica #'heuristic-3
+			   	:custo #'cost-max-machines)
+			"a*"))
 
-#| (defmethod print-object ((object job-state) stream)
-	(labels ((print-array-jobs (initial-string jobs))
-		(format stream "~S" initial-string)
-		(dotimes (i (length jobs))
-			(format stream "     Job #~D ~%" i)
-				(dolist (task (aref jobs i))
-					(format stream "          Task ~D @ Machine ~D   Start: ~D Duration: ~D End: ~D ~%" 
-						(job-shop-task-task.nr task) 
-						(job-shop-task-machine.nr task) 
-						(job-shop-task-start.time task) 
-						(job-shop-task-duration task)
-						(if (null (job-shop-task-start.time task))
-							-1
-							(+ (job-shop-task-start.time task) (job-shop-task-duration task)))))))
 
-	(let ((machines (job-state-machines object))
-		  (wasted (job-state-wasted-time object))
-		  (alloc (job-state-allocated-tasks object))
-		  (unnaloc (job-state-non-allocated-tasks object)))
+(defun cal-a-start-melhor-heuristica (initial-state)
+	 (procura (cria-problema initial-state 
+		 		(list #'operator)
+			   	:objectivo? #'objective? 
+			   	:heuristica #'heuristic-3
+			   	:custo #'cost-max-machines) 
+		   	"a*"))
 
-		(dotimes (i (length machines))
-			(format stream "Machine ~D ends at ~D [Total wasted time: ~D] ~%" i (aref machines i) (aref wasted i)))
-		
-		(print-array-jobs "-- ALLOCATED TASKS -- ~%" alloc)
-		(print-array-jobs "-- NON-ALLOCATED TASKS -- ~%" unnalloc)))) |#
+(defun cal-a-start-melhor-heuristica-alternativa (initial-state)
+	 (procura (cria-problema initial-state 
+		 		(list #'operator)
+			   	:objectivo? #'objective? 
+			   	:heuristica #'heuristic-3
+			   	:custo #'cost-max-machines) 
+		   	"a*"))
+
+(defun cal-sondagem-iterativa (initial-state)
+	(sondagem-iterativa (cria-problema initial-state (list #'operator) :objectivo? #'objective?)))
+
+(defun cal-ilds (initial-state)
+	(ILDS-job-shop (cria-problema initial-state 	
+							(list #'operator)
+							:objectivo? #'objective? 
+							:heuristica #'heuristic-3)))
