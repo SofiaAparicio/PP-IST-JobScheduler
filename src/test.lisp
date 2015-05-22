@@ -56,12 +56,12 @@
 
 (setf prof1 (job-shop-problem-to-job-state (first *job-shop-problems*)))
 
-(defun test-prob-2 () (procura (cria-problema prof1
+(defun test-prob-2 () (procura (cria-problema bar
                                 (list #'operator)
                                 :objectivo? #'objective?
                                 :custo #'cost-max-machines
                                 ;:hash #'get-hash-job-state
                                 ;(:estado= #'equal-job-states
-                                :heuristica #'heuristic-1)
+                                :heuristica #'heuristic-3)
                                 "a*"
                                 :espaco-em-arvore? t))()

@@ -33,7 +33,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;FIXME renomear machine para machine -times
-(defstruct job-state machines previous-cost wasted-time allocated-tasks non-allocated-tasks)
+(defstruct job-state machines previous-cost wasted-time allocated-tasks num-alloc non-allocated-tasks num-unalloc)
 
 (defun get-hash-job-state(state)
 	;(print "CALLED HASH")
@@ -49,7 +49,9 @@
 					:previous-cost 0
 					:wasted-time (make-array num-machines :initial-element 0)
 					:allocated-tasks (make-array num-jobs :initial-element (list))
-					:non-allocated-tasks (make-array num-jobs :initial-element (list))))
+					:num-alloc 0
+					:non-allocated-tasks (make-array num-jobs :initial-element (list))
+					:num-unalloc 0))
 
 (defun copy-list-tasks (list-tasks)
 	(if (null list-tasks)
@@ -69,7 +71,9 @@
 		:previous-cost (job-state-previous-cost state)
 		:wasted-time (copy-array (job-state-wasted-time state))
 		:allocated-tasks (copy-job-tasks-map (job-state-allocated-tasks state))
-		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))))
+		:num-alloc (job-state-num-alloc state)
+		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))
+		:num-unalloc (job-state-num-unalloc state)))
 
 (defun copy-task (task)
 	(make-job-shop-task 
@@ -105,6 +109,10 @@
 		(setf (aref (job-state-wasted-time state) machine-nr) 
 			  (+ (aref (job-state-wasted-time state) machine-nr) wasted-time))
 
+		;update number of tasks
+		(incf (job-state-num-alloc state))
+		(decf (job-state-num-unalloc state))
+
 		;remove task from unallocated tasks
 		(setf (aref (job-state-non-allocated-tasks state) job-number) 
 			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))		
@@ -127,6 +135,7 @@
     	   (num-jobs (job-shop-problem-n.jobs problem))
     	   (new-state (empty-job-state num-machines num-jobs)))
         (dolist (job (job-shop-problem-jobs problem))
+        	(setf (job-state-num-unalloc new-state) (+ (job-state-num-unalloc new-state) (length (job-shop-job-tasks job))))
             (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job)) 
             	  (sort (copy-list-tasks (job-shop-job-tasks job)) #'order-by-task.nr)))
         new-state)))
@@ -142,11 +151,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun objective? (state)
-	(let ((jobs (job-state-non-allocated-tasks state)))
-		(dotimes (i (length jobs))
-			(when (not (null (aref jobs i)))
-				(return-from objective? nil))))
-    t)
+	(= 0 (job-state-num-unalloc state)))
 
 (defun operator (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
@@ -225,24 +230,17 @@
 		   (* sum-differences 0.75))))
 
 (defun heuristic-3 (state)
-	(let ((num-unallocated-tasks 0)
-		  (total-tasks 0)
-		  (max-time-machines (machines-max-time state))
-		  (sum-durations-non-allocated-tasks 0)
-		  (num-machines (length (job-state-machines state)))
-		  (alloc (job-state-allocated-tasks state))
-		  (unalloc (job-state-non-allocated-tasks state)))
+	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
+		   (total-tasks (+ num-unallocated-tasks (job-state-num-alloc state)))
+		   (max-time-machines (machines-max-time state))
+		   (sum-durations-non-allocated-tasks 0)
+		   (num-machines (length (job-state-machines state)))
+		   (unalloc (job-state-non-allocated-tasks state)))
 
 		;(print "hre")
 		(dotimes (job-index (length unalloc))
 			(dolist (task (aref unalloc job-index))
-				(incf num-unallocated-tasks)
-				(incf total-tasks)
 				(setf sum-durations-non-allocated-tasks (+ sum-durations-non-allocated-tasks (job-shop-task-duration task)))))
-
-		;(print "hre2")
-		(dotimes (job-index (length alloc))
-			(setf total-tasks (+ total-tasks (length (aref alloc job-index)))))
 
 		(* (/ num-unallocated-tasks total-tasks)
 		   (/ (+ max-time-machines sum-durations-non-allocated-tasks)
