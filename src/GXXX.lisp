@@ -116,14 +116,14 @@
 			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))
 		
 		;update starttime of the new task
-		(setf (task-compact-start.time task) task-time-start)		
+		(setf (task-compact-start.time task) task-time-start)
 		
 		;update allocated tasks
 		(setf (aref (job-state-allocated-tasks state) job-number) 
 			  (cons task (aref (job-state-allocated-tasks state) job-number)))
 
 		;update machines times
-		(setf (aref (job-state-machines state) machine-nr)  
+		(setf (aref (job-state-machines state) machine-nr)
 			  (+ task-time-start (task-compact-duration task)))))
 
 
@@ -139,7 +139,7 @@
         new-state)))
 
 
-(defun convert-to-allocated-job(state)
+(defun convert-job-state-to-job-shop-problem (state)
 	(declare (ignore state)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -163,17 +163,21 @@
 				(let ((sucessor (result-allocate-task state job-index)))
 					(setf (job-state-previous-cost sucessor) cost-parent-state)
 					(setf sucessores (cons sucessor sucessores)))))
+		;(format t "------> ~D ~%" (length sucessores))
 		sucessores))
 
 (defun state-max-depth (state)
-    (let ((depth 0))
-        (dotimes (i (length (job-state-non-allocated-tasks state)))
-         (setf depth (+ depth (length (aref (job-state-non-allocated-tasks state) i)))))
-	depth))
+	(job-state-num-unalloc state))
 
+(defun determine-max-value-array (array)
+	(let ((max 0))
+		(dotimes (i (length array))
+			(when (> (aref array i) max)
+				(setf max (aref array i))))
+		max))
 
 (defun machines-max-time (state)
-	(reduce #'max (map 'list (lambda (x) x) (job-state-machines state))))
+	(determine-max-value-array (job-state-machines state)))
 
 (defun cost-transition-max-machines (state)
 	(- (machines-max-time state)
@@ -197,7 +201,7 @@
 				(setf (aref estimated-time (task-compact-machine.nr task))
 					  (+ (aref estimated-time (task-compact-machine.nr task))
 					  	 (task-compact-machine.nr task)))))
-		(reduce #'max (map 'list (lambda (x) x) estimated-time))))
+		(determine-max-value-array estimated-time)))
 
 
 (defun heuristic-3 (state)
@@ -274,7 +278,7 @@
 					(let ((result (ILDS-Descrepancia state descrepancy)))
 						(cond ((equal descrepancy profundidade-maxima) result);caso seja resultado vazio e ja' nao haja mais descrepancias a fazer, e' mesmo vazio
 								((null result) (descrepancy-loop state (+ descrepancy 1)));se houver descrepancias a fazer, fa'-las e chama de novo
-								(t result)))));encontrou a solucao)
+								 (t result)))));encontrou a solucao)
 			(descrepancy-loop state 0))))
 		
 
@@ -336,7 +340,8 @@
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
 			   	:custo #'cost-transition-max-machines)
-			"a*"))
+			"a*"
+			:espaco-em-arvore? t))
 
 
 (defun cal-a-start-melhor-heuristica (initial-state)
@@ -345,7 +350,8 @@
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
 			   	:custo #'cost-transition-max-machines) 
-		   	"a*"))
+		   	"a*"
+		   	:espaco-em-arvore? t))
 
 (defun cal-a-start-melhor-heuristica-alternativa (initial-state)
 	 (procura (cria-problema initial-state 
@@ -353,7 +359,8 @@
 			   	:objectivo? #'objective? 
 			   	:heuristica #'heuristic-3
 			   	:custo #'cost-transition-max-machines) 
-		   	"a*"))
+		   	"a*"
+		   	:espaco-em-arvore? t))
 
 (defun cal-sondagem-iterativa (initial-state)
 	(sondagem-iterativa (cria-problema initial-state (list #'operator) :objectivo? #'objective?)))
