@@ -67,26 +67,6 @@
 	remaining-time))
 
 
-;(setf s1 (job-shop-problem-to-job-state foo)) (heuristic-5 s1)
-
-
-(defun determine-min-value-array (array)
-	(let ((min (cons 0 999999999)))
-		(dotimes (i (length array))
-			(when (< (aref array i) (cdr min))
-				(setf min (cons i (aref array i)))))
-		min))
-
-
-;(setf s (nthcdr 10 (first (calendarização bar "2"))))
-
-(defun sum-pending-jobs (state)
-	(let ((count 0)
-		  (unalloc (job-state-non-allocated-tasks state)))
-		(dotimes (job-index (length unalloc))
-			(when (not (null (aref unalloc job-index)))
-				(incf count)))
-		count))	
 
 (defun heuristic-5 (state)
 	"based on johnsons algorithm for N > 2 machines"
@@ -99,82 +79,81 @@
 		   ;)
 
 
-;(setf s (first (calendarização  bar "2")))
+(defun johnsons-algorithm (initial-state)
+	"Isto está a nivel dos jobs mas tem que estar a nível da primeira tarefa de cada job"
+	(flet ((determine-min-value-array (array)
+				(let ((min (cons 0 999999999)))
+					(dotimes (i (length array))
+						(when (< (aref array i) (cdr min))
+							(setf min (cons i (aref array i)))))
+					min))
+			(determine-minimum-job (lst-jobs m1 m2)
+				(let* ((min-value 99999999)
+					   (min-job nil)
+					   (first-machine nil))
 
-	(when (= 0 (job-state-num-unalloc state))
-		  (return-from heuristic-5 0))
+					(dolist (job-id lst-jobs)
+						(let ((m1v (gethash job-id m1))
+							  (m2v (gethash job-id m2))
+							  (min-mv nil))
+							;(format t "m1v: ~D m2v: ~D ~%" m1v m2v)
+							;some machines may not have jobs allocated
+							(setf min-mv (cond ((= m1v 0) m2v)
+								  			   ((= m2v 0) m1v)
+								  			   (t (min m1v m2v))))
+							;(format t "min-mv: ~D~%" min-mv)
+							(if (= min-mv m1v)
+								(progn 
+									(setf min-value m1v)
+									(setf min-job job-id)
+									(setf first-machine t))
+								(progn 
+									(setf min-value m2v)
+								  	(setf min-job job-id)
+								  	(setf first-machine nil)))))
+					(list min-job first-machine))))
 
-	;first step: generate operations times for each job in each machine
-	(dotimes (job-index num-jobs)
-		(dolist (task (aref unnaloc job-index))
-			(if (< (task-compact-machine.nr task) pivot)
-				(setf (aref m1 job-index) (+ (aref m1 job-index) (task-compact-duration task)))
-				(setf (aref m2 job-index) (+ (aref m2 job-index) (task-compact-duration task))))))
+	(let* ((copy-state (copy-job-state initial-state))
+		   (unnaloc (job-state-non-allocated-tasks copy-state))
+		   (pending-jobs (list))
+		   (m1 (make-hash-table))
+		   (m2 (make-hash-table))
+		   (pivot (nth-value 0 (floor (length (job-state-machines copy-state)) 2)))
+		   (job-sort (list)))
 
-	;(format t "m1: ~S~%" m1)
-	;(format t "m2: ~S~%" m2)
+		;Get processing time for each machine
+		(dotimes (job-index (length unnaloc))
+			(let ((tasks (aref unnaloc job-index)))
+				(when (not (null tasks))
+					(setf pending-jobs (cons job-index pending-jobs))
+					(setf (gethash job-index m1) 0)
+					(setf (gethash job-index m2) 0)		
+					(dolist (task tasks)
+						(if (< (task-compact-machine.nr task) pivot)
+							(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
+							(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task))))))))
+		;(print m1)
+		;(print m2)
 
+		;(calendarização foo "6")
 
-	(dotimes (j-i (length m1))
-		(when (= 0 (aref m1 j-i))
-			  (setf (aref m1 j-i) 99999999))
-		(when (= 0 (aref m2 j-i))
-			  (setf (aref m2 j-i) 99999999)))
+		(loop while (> (hash-table-count m1) 0) do
+			(let* ((minimum-job (determine-minimum-job pending-jobs m1 m2))
+				   (min-job-id (first minimum-job))
+				   (first-machine-p (second minimum-job)))
+				(if first-machine-p
+					(setf job-sort (nconc (list min-job-id) job-sort))
+					(setf job-sort (nconc job-sort (list min-job-id))))
+				(setf pending-jobs (remove min-job-id pending-jobs))
+				(remhash min-job-id m1)
+				(remhash min-job-id m2)))
 
-	;(format t "Sorting job-list~%")
-	(dotimes (job-index num-jobs)
-		(let* ((min1 (determine-min-value-array m1))
-			   (min2 (determine-min-value-array m2))
-		       (min-value (min (cdr min1) (cdr min2))))
-
-
-			(when (not (and (= (car min1) 99999999) (= (car min2) 99999999)))
-				(if (= min-value (cdr min1))
-					(progn
-						(setf (aref m1 (car min1)) 9999999)
-						(setf (aref m2 (car min1)) 9999999))
-					(progn
-						(setf (aref m1 (car min2)) 9999999)
-						(setf (aref m2 (car min2)) 9999999)))
-				(when (> min-value max-machines-time)
-					(setf max-machines-time min-value)))))
-
-	;(format t "FINAL SORT: " job-sort)
-	;(format t "FINAL machines-time: ~D(" max-machines-time)
-	max-machines-time
-))
-
-
-		(let ((min-value 999999)
-			  (min-job nil)
-			  (first-machine nil))
-
-			;check if wasn't checked yet
-			;(format t "m1: ~S m2: ~S job-index: ~D~%" m1 m2 job-index (aref m1 job-index))
-			(dotimes (j-i (length m1))
-				(let ((operation-time-m1 (aref m1 j-i))
-					  (operation-time-m2 (aref m2 j-i)))
-
-					;check if wasn't added already to the list
-					(when (not (null operation-time-m1))
-						(when (< operation-time-m1 min-value)
-							(setf min-value operation-time-m1)
-							(setf min-job job-index)
-							(setf first-machine t))
-						(when (< operation-time-m2 min-value)
-							(setf min-value operation-time-m2)
-							(setf min-job job-index)
-							(setf first-machine nil)))))
-
-		;(format t "min-value: ~D ~%" min-value)
-
-		(when (> min-value max-machines-time)
-			(setf max-machines-time min-value))
-		;(if first-machine
-		;	(setf job-sort (nconc (list min-job) job-sort))
-		;	(setf job-sort (nconc job-sort (list min-job))))
-
-		;(format t "Sort: ~S~%" job-sort)
-
-		(setf (aref m1 min-job) nil)
-		(setf (aref m2 min-job) nil)))
+		;(format t "job-sort: ~S~%" job-sort)
+		(dolist (job-index job-sort)
+			(dotimes (i (length (aref unnaloc job-index)))
+				(when (not (null (aref unnaloc job-index)))
+					;(format t "allocate-task ~D ~%" job-index)
+					(setf copy-state (result-allocate-task copy-state job-index))
+					;(print copy-state)
+					)))
+		copy-state)))

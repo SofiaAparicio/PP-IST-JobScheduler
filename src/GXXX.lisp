@@ -232,16 +232,15 @@
 
 
 (defun determine-best-strategy ()
-	(let ((probs (make-array 5 :initial-contents (list prof1 prof2 prof3 prof4 prof5)))
-		  (strategies (list "1" "2"))
+	(let ((probs (list prof1 prof2 prof3 prof4 prof5))
+		  (strategies (list "6"))
 		  (current-best 99999999)
 		  (best-strategy nil))
 		(dolist (strategy strategies)
 			(let ((sum-costs 0))
-				(dotimes (pi 5)
-					(let* ((p (aref probs pi))
-						   (cost (machines-max-time (first (last (first (calendarização p strategy)))))))
-						(setf sum-costs (+ sum-costs cost))))
+				(dolist (p probs)
+					(format t "-- solving problem ~S~%" (job-shop-problem-name p))
+					(setf sum-costs (+ sum-costs (machines-max-time (calendarização p strategy)))))
 
 				(format t "sum-costs ~d~%" sum-costs)
 				(when (< sum-costs current-best)
@@ -316,8 +315,10 @@
 ;Return: ---
 ;Side-effects: None
 
+
+
 (defun johnsons-algorithm (initial-state)
-	(flet ((determine-min-value-array (array)
+	(labels ((determine-min-value-array (array)
 				(let ((min (cons 0 999999999)))
 					(dotimes (i (length array))
 						(when (< (aref array i) (cdr min))
@@ -347,52 +348,51 @@
 									(setf min-value m2v)
 								  	(setf min-job job-id)
 								  	(setf first-machine nil)))))
-					(list min-job first-machine))))
+					(list min-job first-machine)))
 
-	(let* ((copy-state (copy-job-state initial-state))
-		   (unnaloc (job-state-non-allocated-tasks copy-state))
-		   (pending-jobs (list))
-		   (m1 (make-hash-table))
-		   (m2 (make-hash-table))
-		   (pivot (nth-value 0 (floor (length (job-state-machines copy-state)) 2)))
-		   (job-sort (list)))
+			(allocate-next-best-task (state)
+				(let ((pivot (nth-value 0 (floor (length (job-state-machines state)) 2)))
+					  (job-sort (list))
+					  (unnaloc (job-state-non-allocated-tasks state))
+					  (m1 (make-hash-table))
+					  (m2 (make-hash-table))
+					  (pending-jobs (list)))
 
-		;Get processing time for each machine
-		(dotimes (job-index (length unnaloc))
-			(let ((tasks (aref unnaloc job-index)))
-				(when (not (null tasks))
-					(setf pending-jobs (cons job-index pending-jobs))
-					(setf (gethash job-index m1) 0)
-					(setf (gethash job-index m2) 0)		
-					(dolist (task tasks)
-						(if (< (task-compact-machine.nr task) pivot)
-							(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
-							(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task))))))))
-		;(print m1)
-		;(print m2)
+					(dotimes (job-index (length unnaloc))
+						(let ((task (first (aref unnaloc job-index))))
+							(when (not (null task))
+								(setf pending-jobs (cons job-index pending-jobs))
+								(setf (gethash job-index m1) 0)
+								(setf (gethash job-index m2) 0)
+								(if (< (task-compact-machine.nr task) pivot)
+									(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
+									(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task)))))))
 
-		;(calendarização foo "6")
+					(loop while (> (hash-table-count m1) 0) do
+						(let* ((minimum-job (determine-minimum-job pending-jobs m1 m2))
+							   (min-job-id (first minimum-job))
+							   (first-machine-p (second minimum-job)))
+							(if first-machine-p
+								(setf job-sort (nconc (list min-job-id) job-sort))
+								(setf job-sort (nconc job-sort (list min-job-id))))
+							(setf pending-jobs (remove min-job-id pending-jobs))
+							(remhash min-job-id m1)
+							(remhash min-job-id m2)))
 
-		(loop while (> (hash-table-count m1) 0) do
-			(let* ((minimum-job (determine-minimum-job pending-jobs m1 m2))
-				   (min-job-id (first minimum-job))
-				   (first-machine-p (second minimum-job)))
-				(if first-machine-p
-					(setf job-sort (nconc (list min-job-id) job-sort))
-					(setf job-sort (nconc job-sort (list min-job-id))))
-				(setf pending-jobs (remove min-job-id pending-jobs))
-				(remhash min-job-id m1)
-				(remhash min-job-id m2)))
+					;(format t "Applying tasks")
+					(dolist (job-index job-sort)
+						;(format t "allocate-task ~D ~%" job-index)
+						(setf state (result-allocate-task state job-index))
+								;(print copy-state)
+								)
+					state)))
 
-		;(format t "job-sort: ~S~%" job-sort)
-		(dolist (job-index job-sort)
-			(dotimes (i (length (aref unnaloc job-index)))
-				(when (not (null (aref unnaloc job-index)))
-					;(format t "allocate-task ~D ~%" job-index)
-					(setf copy-state (result-allocate-task copy-state job-index))
-					;(print copy-state)
-					)))
-		copy-state)))
+		(let ((state (copy-job-state initial-state)))
+			(loop while (not (objective? state)) do
+				;(format t ">>Calling for the next task~%")
+				(setf state (allocate-next-best-task state)))
+
+			state)))
 
 
 
@@ -423,6 +423,7 @@
 				(setf result-state (cal-melhor-abordagem initial-state))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
+				(setf result-state (first (last (first result-state))))
 				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
 				)
 			((equal strategy "2");"a*.melhor.heuristica") 
