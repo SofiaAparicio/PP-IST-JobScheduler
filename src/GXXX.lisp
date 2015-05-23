@@ -89,7 +89,6 @@
 		  (precedence-time 0)
 		  (last-precedence-task (first (aref (job-state-allocated-tasks state) job-number))))
 		(when (not (null last-precedence-task));if there is a precedence task
-			(print "here!!!!!!!")
 			(setf precedence-time (+ (task-compact-start.time last-precedence-task) 
 									 (task-compact-duration last-precedence-task))))
 		(max machine-time precedence-time)))
@@ -138,8 +137,41 @@
         new-state)))
 
 
-(defun convert-job-state-to-job-shop-problem (state)
-	(declare (ignore state)))
+;(setf a (first (last (first (calendarização foo2 "1")))))
+
+(defun convert-job-state-to-job-shop-problem (state name)
+	(print "CONVERTING TO JOB-SHOP-PROBLEM")
+	(let* ((alloc (job-state-allocated-tasks state))
+		   (num-jobs (length alloc))
+		   (result (make-job-shop-problem 
+						:name name
+						:n.jobs num-jobs
+						:n.machines (length (job-state-machines state))
+						:jobs (list))))
+
+	(dotimes (job-number num-jobs)
+		(let ((num-task 0)
+			  (job (make-job-shop-job 
+			  			:job.nr job-number
+			  			:tasks (list))))
+			;decreasing order of task-number
+			(dolist (task (aref alloc job-number))
+				(let* ((num-tasks (- (length (aref alloc job-number)) 1))
+					   (expanded-task (make-job-shop-task 
+										:job.nr job-number
+										:task.nr (- num-tasks num-task)
+										:machine.nr (task-compact-machine.nr task)
+										:duration (task-compact-duration task)
+										:start.time (task-compact-start.time task))))
+					(incf num-task)
+					(if (null (job-shop-job-tasks job))
+						(setf (job-shop-job-tasks job) (list expanded-task))
+						(setf (job-shop-job-tasks job) (nconc (list expanded-task) (job-shop-job-tasks job))))))
+			(if (null (job-shop-problem-jobs result))
+				(setf (job-shop-problem-jobs result) (list job))
+				(setf (job-shop-problem-jobs result) (nconc (job-shop-problem-jobs result) (list job))))))
+
+	result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;                      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -336,8 +368,8 @@
 						(if (< (task-compact-machine.nr task) pivot)
 							(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
 							(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task))))))))
-		(print m1)
-		(print m2)
+		;(print m1)
+		;(print m2)
 
 		;(calendarização foo "6")
 
@@ -352,13 +384,14 @@
 				(remhash min-job-id m1)
 				(remhash min-job-id m2)))
 
-		(format t "job-sort: ~S~%" job-sort)
+		;(format t "job-sort: ~S~%" job-sort)
 		(dolist (job-index job-sort)
 			(dotimes (i (length (aref unnaloc job-index)))
 				(when (not (null (aref unnaloc job-index)))
-					(format t "allocate-task ~D ~%" job-index)
+					;(format t "allocate-task ~D ~%" job-index)
 					(setf copy-state (result-allocate-task copy-state job-index))
-					(print copy-state))))
+					;(print copy-state)
+					)))
 		copy-state)))
 
 
@@ -390,13 +423,13 @@
 				(setf result-state (cal-melhor-abordagem initial-state))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
-				;(setf result-state (first (last (first result-state))))
+				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
 				)
 			((equal strategy "2");"a*.melhor.heuristica") 
 				(setf result-state (cal-a-start-melhor-heuristica initial-state))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
-				;(setf result-state (first (last (first result-state))))
+				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
 				)
 
 				

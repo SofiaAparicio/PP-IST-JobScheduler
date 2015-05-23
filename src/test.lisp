@@ -20,7 +20,7 @@
                 :jobs (list (MAKE-JOB-SHOP-JOB :JOB.NR 0
                                :TASKS (list 
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 0 :MACHINE.NR 0 :DURATION 5 :START.TIME NIL)
-                                    (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 1 :MACHINE.NR 1 :DURATION 5 :START.TIME NIL)))
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 1 :MACHINE.NR 1 :DURATION 6 :START.TIME NIL)))
                     (MAKE-JOB-SHOP-JOB :JOB.NR 1
                                :TASKS (list 
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 3 :START.TIME NIL))))))
