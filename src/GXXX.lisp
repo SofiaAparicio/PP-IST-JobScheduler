@@ -233,7 +233,7 @@
 
 (defun determine-best-strategy ()
 	(let ((probs (list prof1 prof2 prof3 prof4 prof5))
-		  (strategies (list "6"))
+		  (strategies (list "4" "6"))
 		  (current-best 99999999)
 		  (best-strategy nil))
 		(dolist (strategy strategies)
@@ -318,13 +318,7 @@
 
 
 (defun johnsons-algorithm (initial-state)
-	(labels ((determine-min-value-array (array)
-				(let ((min (cons 0 999999999)))
-					(dotimes (i (length array))
-						(when (< (aref array i) (cdr min))
-							(setf min (cons i (aref array i)))))
-					min))
-			(determine-minimum-job (lst-jobs m1 m2)
+	(labels ((determine-minimum-job (lst-jobs m1 m2)
 				(let* ((min-value 99999999)
 					   (min-job nil)
 					   (first-machine nil))
@@ -333,12 +327,11 @@
 						(let ((m1v (gethash job-id m1))
 							  (m2v (gethash job-id m2))
 							  (min-mv nil))
-							;(format t "m1v: ~D m2v: ~D ~%" m1v m2v)
 							;some machines may not have jobs allocated
+
 							(setf min-mv (cond ((= m1v 0) m2v)
 								  			   ((= m2v 0) m1v)
 								  			   (t (min m1v m2v))))
-							;(format t "min-mv: ~D~%" min-mv)
 							(if (= min-mv m1v)
 								(progn 
 									(setf min-value m1v)
@@ -379,23 +372,26 @@
 							(remhash min-job-id m1)
 							(remhash min-job-id m2)))
 
-					;(format t "Applying tasks")
+					;(format t "jobsort: ~S~%" job-sort)
 					(dolist (job-index job-sort)
 						;(format t "allocate-task ~D ~%" job-index)
-						(setf state (result-allocate-task state job-index))
-								;(print copy-state)
-								)
+						(setf state (result-allocate-task state job-index)))
 					state)))
 
 		(let ((state (copy-job-state initial-state)))
 			(loop while (not (objective? state)) do
 				;(format t ">>Calling for the next task~%")
 				(setf state (allocate-next-best-task state)))
-
 			state)))
 
 
-
+(defun calc-heur (lst)
+	(dolist (a lst)
+		(print a)
+		(format t "cost: ~D~%" (machines-max-time a))
+		(format t "difference: ~D~%" (cost-transition-max-machines a))
+		(format t "heuristica: ~D~%" (heuristic-5 a))
+		(read)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -441,7 +437,7 @@
 				(setf result-state (first (last (first result-state))))
 				)
 			((equal strategy "4") ; sondagem.iterativa") 
-				(first (last (cal-sondagem-iterativa initial-state))))
+				(setf result-state (first (last (cal-sondagem-iterativa initial-state)))))
 			((equal strategy "5"); ILDS") 
 				(cal-ilds initial-state))
 			((equal strategy "6");abordagem.alternativa")
@@ -449,14 +445,6 @@
 
 		;(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 		result-state))
-
-(defun calc-heur (lst)
-	(dolist (a lst)
-		(print a)
-		(format t "cost: ~D~%" (machines-max-time a))
-		(format t "difference: ~D~%" (cost-transition-max-machines a))
-		(format t "heuristica: ~D~%" (heuristic-5 a))
-		(read)))
 
 (defun cal-melhor-abordagem (initial-state)
 	 (procura (cria-problema initial-state 
@@ -467,7 +455,6 @@
 			   	:custo #'cost-transition-max-machines)
 			"a*"
 			:espaco-em-arvore? t))
-
 
 (defun cal-a-start-melhor-heuristica (initial-state)
 	 (procura (cria-problema initial-state 
@@ -495,4 +482,4 @@
 	(ILDS-job-shop (cria-problema initial-state
 							(list #'operator)
 							:objectivo? #'objective? 
-							:heuristica #'heuristic-3)))
+							:heuristica #'heuristic-1)))
