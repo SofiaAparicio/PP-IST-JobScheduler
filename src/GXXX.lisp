@@ -121,7 +121,7 @@
 
 		;update machines times
 		(setf (aref (job-state-machines state) machine-nr)
-			  (+ (aref (job-state-machines state) machine-nr)
+			  (+ (task-compact-start.time task)
 			  	 (task-compact-duration task)))))
 
 
