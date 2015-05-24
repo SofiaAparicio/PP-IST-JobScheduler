@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Procura e Planeamento 2014/2015 - GXXX
+; Procura e Planeamento 2014/2015 - G004
 ;
 ; 72913 - Bruno Alexandre Pires Henriques
 ; 72960 - Tiago Manuel Ferrão dos Santos
@@ -12,6 +12,7 @@
 
 ; ORDENAR JOBS
 ; CORRIGIR ILDS
+; ARRANJAR HEURISICA DECENTE QUE NAO DA OUT OF MEMORY OU ARRANJAR OUTRA ABORDAGEM ALTERNATIVA (HIBRIDA ILDS + A*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  STRUCTURE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,40 +63,29 @@
 		(allocate-task! copy-state job-number)
 		copy-state))
 
+(defun determine-start-time (state job-number task)
+	(let ((machine-time (aref (job-state-machines state) (task-compact-machine.nr task)))
+		  (precedence-time 0)
+		  (last-precedence-task (first (aref (job-state-allocated-tasks state) job-number))))
+		(when (not (null last-precedence-task));if there is a precedence task
+			(setf precedence-time (+ (task-compact-start.time last-precedence-task) 
+									 (task-compact-duration last-precedence-task))))
+		(max machine-time precedence-time)))
+
 (defun allocate-task! (state job-number)
-	(labels ((determine-start-time (state job-number task)
-				(let ((machine-time (aref (job-state-machines state) (task-compact-machine.nr task)))
-					  (precedence-time 0)
-					  (last-precedence-task (first (aref (job-state-allocated-tasks state) job-number))))
-					(when (not (null last-precedence-task));if there is a precedence task
-						(setf precedence-time (+ (task-compact-start.time last-precedence-task) 
-												 (task-compact-duration last-precedence-task))))
-					(max machine-time precedence-time))))
+	(let* ((task (first (aref (job-state-non-allocated-tasks state) job-number)))
+		   (task-time-start (determine-start-time state job-number task))
+		   (machine-nr (task-compact-machine.nr task)))
 		
-		(let* ((task (first (aref (job-state-non-allocated-tasks state) job-number)))
-			   (task-time-start (determine-start-time state job-number task))
-			   (machine-nr (task-compact-machine.nr task)))
-			
-			;update number of tasks
-			(decf (job-state-num-unalloc state))
-
-			;remove task from unallocated tasks
-			(setf (aref (job-state-non-allocated-tasks state) job-number) 
-				  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))
-			
-			;update starttime of the new task
-			(setf (task-compact-start.time task) task-time-start)
-			
-			;update allocated tasks
-			(setf (aref (job-state-allocated-tasks state) job-number) 
-				  (cons task (aref (job-state-allocated-tasks state) job-number)))
-
-			;update machines times
-			(setf (aref (job-state-machines state) machine-nr)
-				  (+ (task-compact-start.time task)
-				  	 (task-compact-duration task))))))
-
-
+		(decf (job-state-num-unalloc state))
+		(setf (aref (job-state-non-allocated-tasks state) job-number) 
+			  (remove task (aref (job-state-non-allocated-tasks state) job-number) :test #'equalp))
+		(setf (task-compact-start.time task) task-time-start)
+		(setf (aref (job-state-allocated-tasks state) job-number) 
+			  (cons task (aref (job-state-allocated-tasks state) job-number)))
+		(setf (aref (job-state-machines state) machine-nr)
+			  (+ (task-compact-start.time task)
+			  	 (task-compact-duration task)))))
 
 (defun job-shop-problem-to-job-state (problem)
 	"Converts job-shop-problem to job-state"
@@ -138,9 +128,7 @@
 										:duration (task-compact-duration task)
 										:start.time (task-compact-start.time task))))
 					(incf num-task)
-					(if (null (job-shop-job-tasks job))
-						(setf (job-shop-job-tasks job) (list expanded-task))
-						(setf (job-shop-job-tasks job) (nconc (list expanded-task) (job-shop-job-tasks job))))))
+					(setf (job-shop-job-tasks job) (cons expanded-task (job-shop-job-tasks job)))))
 			(if (null (job-shop-problem-jobs result))
 				(setf (job-shop-problem-jobs result) (list job))
 				(setf (job-shop-problem-jobs result) (nconc (job-shop-problem-jobs result) (list job))))))
@@ -164,6 +152,73 @@
 
 (defun objective? (state)
 	(= 0 (job-state-num-unalloc state)))
+
+
+;PARA SER CONFLITO:
+;|   MINHA TAREFA     |
+;           | OUTRA TAREFA   |
+; PARA NÃO SER CONFLITO
+;                     | OUTRA TAREFA |
+;  | other1 | other2 |
+; ATTENTION: SOMETHING IS WRONG BUT IT SEEMS NOT. CHECK FOO3 FOO4 FOO5
+(defun sucessors-with-cut (state)
+	(labels ((n-list (n)
+			  (if (zerop n) nil
+			      (cons (- n 1) (n-list (1- n)))))
+
+			(is-conflicting-task (state start-time1 end-time1 machine-nr1 job-index2 lst-tasks &optional (end-time-previous 0))
+				(let ((task2 (first lst-tasks)))
+					(if (null task2)
+						nil
+						(let* ((start-time2 (determine-start-time state job-index2 task2))
+							   (duration (task-compact-duration task2))
+							   (end-time2 (+ start-time2 duration))
+							   (machine-nr2 (task-compact-machine.nr task2)))
+							;(format t "    with [~D]: ~S ~%" job-index2 task2)
+							(setf start-time2 (max start-time2 end-time-previous))
+							(setf end-time2 (max end-time2 (+ start-time2 duration)))
+							;(format t "    start-time2: ~D   end-time2: ~D ~%" start-time2 end-time2)
+							(cond ((>= start-time2 end-time1) nil)
+								  ((and (>= start-time2 start-time1) 
+								  		(= machine-nr1 machine-nr2)) 
+								  		;(format t "SAME MACHINE CONLIFITING~%") 
+								  		t)
+								  (t (is-conflicting-task state start-time1 end-time1 machine-nr1 job-index2 (rest lst-tasks) (+ start-time2 duration))))))))
+
+			 (is-confliting (job-index1 pending-processing unallocated-tasks)
+				"check if there is another job in the same machine in the same temporal space confliting"
+				;(format t "HEREEEE ~D ~%" job-index1)
+				(let* ((task1 (first (aref unallocated-tasks job-index1)))
+					   (machine-nr1 (task-compact-machine.nr task1))
+					   (start-time1 (determine-start-time state job-index1 task1))
+					   (end-time1 (+ start-time1 (task-compact-duration task1))))
+					(dolist (job-index2 pending-processing)
+						(when (not (= job-index2 job-index1))
+							;(format t "Comparing task[~D] ~S startime1: ~D   end-time2: ~D     with... job-index2 ~D~%" job-index1 task1 start-time1 end-time1 job-index2)
+							(when (is-conflicting-task state start-time1 end-time1 machine-nr1 job-index2 (aref unallocated-tasks job-index2))
+								(return-from is-confliting t))))
+					;(format t "NOT CONFLITING-ALL-IS-GOOD~%")
+					nil)))
+
+	(let* ((unallocated-tasks (job-state-non-allocated-tasks state))
+		   (sucessores (list))
+		   (cost-parent-state (cost-state-max-start-time state))
+		   (pending-processing (n-list (length unallocated-tasks))))
+		(dotimes (job-index (length unallocated-tasks))
+			(setf pending-processing (remove job-index pending-processing))
+			;(format t "at job-index ~D ~%" job-index)
+			(when (and (not (null (aref unallocated-tasks job-index)))
+					   (not (null pending-processing))
+					   (not (is-confliting job-index pending-processing unallocated-tasks)))
+					
+				  (let ((sucessor (result-allocate-task state job-index)))
+					(setf (job-state-previous-cost sucessor) cost-parent-state)
+					(return-from sucessors-with-cut (list sucessor)))))
+
+		;if they are no potential cuts, generate for every job
+		(setf sucessores (sucessors state))
+		;(format t "number of sucessors: ~D~%" (length sucessores))
+		sucessores)))
 
 (defun sucessors (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
@@ -189,6 +244,35 @@
 
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
+
+(defun heuristic-2 (state)
+	(let* ((unnaloc (job-state-non-allocated-tasks state))
+		   (num-machines (length (job-state-machines state)))
+		   (machines-times (make-array num-machines :initial-element 0))
+   		   (machines-assigned-jobs (make-array num-machines :initial-element (list)))
+   		   (remaining-time 0))
+
+	(dotimes (job-index (length unnaloc))
+		(dolist (task (aref unnaloc job-index))
+			(let ((machine-nr (task-compact-machine.nr task)))
+
+				(setf (aref machines-times machine-nr)
+					  (+ (aref machines-times machine-nr)
+					  	 (task-compact-duration task)))
+				(when (null (find job-index (aref machines-assigned-jobs machine-nr)))
+					  (setf (aref machines-assigned-jobs machine-nr) (cons job-index (aref machines-assigned-jobs machine-nr)))))))
+
+	(dotimes (machine-nr num-machines)
+		(when (not (null (aref machines-assigned-jobs machine-nr)))
+			(setf remaining-time 
+				  (+ remaining-time 
+				     (+ (* 0.9 (aref machines-times machine-nr))
+				     	(* 0.1 (/ (aref machines-times machine-nr)
+				     			   (length (aref machines-assigned-jobs machine-nr)))))))))
+	remaining-time))
+
+
+;proxima heuristica, contar o numero de conflitos de cada maquina
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -318,84 +402,66 @@
 (defun calendarização (problem strategy)
 	"Given a problem and a strategy (melhor.abordagem, a*.melhor.heuristica, a*.melhor.heuristica.alternativa,
 	sondagem.iterativa, ILDS or abordagem.alternativa), returns the result-state"
-	(let ((initial-state (job-shop-problem-to-job-state problem))
+	(let ((name-problem (job-shop-problem-name problem))
+		  (initial-state (job-shop-problem-to-job-state problem))
 		  (result-state nil)
 		  (*nos-gerados* 0)
 		  (*nos-expandidos* 0))
 		(cond 
 			((equal strategy "1");"melhor.abordagem") 
-				(setf result-state (cal-melhor-abordagem initial-state))
-				(setf *nos-gerados* (fourth result-state))
-				(setf *nos-expandidos* (third result-state))
-				(setf result-state (first (last (first result-state))))
-				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
-				)
+				(setf result-state (procura (cria-problema initial-state 
+								 		(list #'sucessors)
+									   	:objectivo? #'objective? 
+									   	:heuristica #'heuristic-1
+									   	:estado= #'equals-job-states
+									   	:custo #'cost-transition-max-machines)
+									"a*"
+									:espaco-em-arvore? t)))
 			((equal strategy "2");"a*.melhor.heuristica") 
-				(setf result-state (cal-a-start-melhor-heuristica initial-state))
-				(setf *nos-gerados* (fourth result-state))
-				(setf *nos-expandidos* (third result-state))
-				(setf result-state (first (last (first result-state))))
-				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
-				)
-
-				
+				(setf result-state (procura (cria-problema initial-state 
+								 		(list #'sucessors)
+									   	:objectivo? #'objective? 
+									   	:heuristica #'heuristic-1
+									   	:estado= #'equals-job-states
+									   	:custo #'cost-transition-max-machines) 
+								   	"a*"
+		   							:espaco-em-arvore? t)))
 			((equal strategy "3");a*.melhor.heuristica.alternativa") 
-				(setf result-state (cal-a-start-melhor-heuristica-alternativa initial-state))
-				(setf *nos-gerados* (fourth result-state))
-				(setf *nos-expandidos* (third result-state))
-				(setf result-state (first (last (first result-state))))
-				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))	
-				)
+				(setf result-state (procura (cria-problema initial-state 
+								 		(list #'sucessors)
+									   	:objectivo? #'objective? 
+									   	:heuristica #'heuristic-4
+									   	:custo #'cost-transition-max-machines) 
+								   	"a*"
+		   							:espaco-em-arvore? t)))
 			((equal strategy "4") ; sondagem.iterativa") 
-				(setf result-state (first (last (cal-sondagem-iterativa initial-state)))))
+				(setf result-state (sondagem-iterativa (cria-problema initial-state 
+										(list #'sucessors) 
+										:objectivo? #'objective?))))
 			((equal strategy "5"); ILDS") 
-				(setf result-state (cal-ilds initial-state)))
+				(setf result-state (ILDS-job-shop (cria-problema initial-state
+							(list #'sucessors)
+							:objectivo? #'objective? 
+							:heuristica #'heuristic-1))))
+
 			((equal strategy "6");abordagem.alternativa")
 				(setf result-state (johnsons-algorithm initial-state))))
 
-		;(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
+		;por cada estrategia a devovler uma lista (lista-estados nil nos-gerados nos-expandidos)
+		(cond ((or (equal strategy "1");"melhor.abordagem")
+			      (equal strategy "2");"a*.melhor.heuristica")
+			      (equal strategy "3"))
+				(setf *nos-gerados* (fourth result-state))
+				(setf *nos-expandidos* (third result-state))
+				(setf result-state (first (last (first result-state)))))
+			  ((equal strategy "4")
+			  	(setf result-state (first (last result-state)))))
+
+		(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 
 		;result-state
-		(convert-job-state-to-job-shop-problem result-state "ola")
+		(convert-job-state-to-job-shop-problem result-state name-problem)
 		))
-
-(defun cal-melhor-abordagem (initial-state)
-	 (procura (cria-problema initial-state 
-		 		(list #'sucessors)
-			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-1
-			   	:estado= #'equals-job-states
-			   	:custo #'cost-transition-max-machines)
-			"a*"
-			:espaco-em-arvore? t))
-
-(defun cal-a-start-melhor-heuristica (initial-state)
-	 (procura (cria-problema initial-state 
-		 		(list #'sucessors)
-			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-1
-			   	:estado= #'equals-job-states
-			   	:custo #'cost-transition-max-machines) 
-		   	"a*"
-		   	:espaco-em-arvore? t))
-
-(defun cal-a-start-melhor-heuristica-alternativa (initial-state)
-	 (procura (cria-problema initial-state 
-		 		(list #'sucessors)
-			   	:objectivo? #'objective? 
-			   	:heuristica #'heuristic-3
-			   	:custo #'cost-transition-max-machines) 
-		   	"a*"
-		   	:espaco-em-arvore? t))
-
-(defun cal-sondagem-iterativa (initial-state)
-	(sondagem-iterativa (cria-problema initial-state (list #'sucessors) :objectivo? #'objective?)))
-
-(defun cal-ilds (initial-state)
-	(ILDS-job-shop (cria-problema initial-state
-							(list #'sucessors)
-							:objectivo? #'objective? 
-							:heuristica #'heuristic-1)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

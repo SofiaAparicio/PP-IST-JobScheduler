@@ -38,7 +38,7 @@
 		(- (determine-max-value-array estimated-time) (determine-max-value-array machines))))
 
 
-(defun heuristic-4 (state)
+(defun heuristic-6 (state)
 	(let* ((unnaloc (job-state-non-allocated-tasks state))
    		   (job-time (make-array (length unnaloc) :initial-element 0))
    		   (num-differents-machines (make-array (length unnaloc) :initial-element (list)))
@@ -67,17 +67,34 @@
 	remaining-time))
 
 
+(defun sucessors-filter-more-than-h-average (state)
+	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
+		  (sucessores (list))
+		  (result (list))
+		  (average-h nil)
+		  (heuristics-values (list))
+		  (cost-parent-state (cost-state-max-start-time state)))
 
-(defun heuristic-5 (state)
-	"based on johnsons algorithm for N > 2 machines"
-	(let* ((unnaloc (job-state-non-allocated-tasks state))
-		   (num-jobs (sum-pending-jobs state))
-		   (m1 (make-array num-jobs :initial-element 0))
-		   (m2 (make-array num-jobs :initial-element 0))
-		   (pivot (nth-value 0 (floor (length (job-state-machines state)) 2)))
-		   (max-machines-time 0))
-		   ;)
+		(dotimes (job-index (length unallocated-tasks))
+			(when (not (null (aref unallocated-tasks job-index)))
+				(let* ((sucessor (result-allocate-task state job-index))
+					   (heuristic (heuristic-1 sucessor)))
+					
+					(if (null average-h)
+						(setf average-h heuristic)
+						(setf average-h (/ (+ average-h heuristic) 2)))
+					;(format t "average-h: ~S ~%" average-h)
+					(setf (job-state-previous-cost sucessor) cost-parent-state)
+					(setf sucessores (cons sucessor sucessores))
+					(setf heuristics-values (cons (cons sucessor heuristic) heuristics-values)))))
 
+		;(format t "values: ~S ~%" heuristics-values)
+
+		(dolist (s heuristics-values)
+			;(format t "Average is ~S and this state is ~S ~%" average-h (cdr s))
+			(when (<= average-h (+ (cdr s) 5))
+				  (setf result (cons (car s) result))))
+		result))
 
 (defun johnsons-algorithm (initial-state)
 	"Isto está a nivel dos jobs mas tem que estar a nível da primeira tarefa de cada job"

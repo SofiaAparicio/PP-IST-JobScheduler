@@ -14,7 +14,7 @@
 
 
 (defvar foo2 (make-job-shop-problem
-                :name "test-hash"
+                :name "simple-one-before-is-better-than-the-another"
                 :n.jobs 2
                 :n.machines 2
                 :jobs (list (MAKE-JOB-SHOP-JOB :JOB.NR 0
@@ -24,6 +24,49 @@
                     (MAKE-JOB-SHOP-JOB :JOB.NR 1
                                :TASKS (list 
                                     (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 3 :START.TIME NIL))))))
+
+
+(defvar foo3 (make-job-shop-problem
+                :name "big-cut-sucessors-first-sucessors-must-be-only-1"
+                :n.jobs 2
+                :n.machines 5
+                :jobs (list (MAKE-JOB-SHOP-JOB :JOB.NR 0
+                               :TASKS (list 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 1 :MACHINE.NR 0 :DURATION 20 :START.TIME NIL)))
+                    (MAKE-JOB-SHOP-JOB :JOB.NR 1
+                               :TASKS (list
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 5 :START.TIME NIL) 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 1 :MACHINE.NR 2 :DURATION 5 :START.TIME NIL)
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 2 :MACHINE.NR 3 :DURATION 5 :START.TIME NIL)
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 3 :MACHINE.NR 4 :DURATION 5 :START.TIME NIL)
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 4 :MACHINE.NR 0 :DURATION 5 :START.TIME NIL))))))
+
+(defvar foo4 (make-job-shop-problem
+                :name "big-cut-sucessors-big-cut"
+                :n.jobs 2
+                :n.machines 5
+                :jobs (list (MAKE-JOB-SHOP-JOB :JOB.NR 0
+                               :TASKS (list 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 1 :MACHINE.NR 0 :DURATION 20 :START.TIME NIL)))
+                    (MAKE-JOB-SHOP-JOB :JOB.NR 1
+                               :TASKS (list
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 5 :START.TIME NIL) 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 1 :MACHINE.NR 2 :DURATION 5 :START.TIME NIL)
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 2 :MACHINE.NR 3 :DURATION 5 :START.TIME NIL))))))
+
+(defvar foo5 (make-job-shop-problem
+                :name "big-cut-sucessors-no-big-cut"
+                :n.jobs 2
+                :n.machines 5
+                :jobs (list (MAKE-JOB-SHOP-JOB :JOB.NR 0
+                               :TASKS (list 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 0 :TASK.NR 1 :MACHINE.NR 0 :DURATION 20 :START.TIME NIL)))
+                    (MAKE-JOB-SHOP-JOB :JOB.NR 1
+                               :TASKS (list
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 0 :MACHINE.NR 1 :DURATION 5 :START.TIME NIL) 
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 1 :MACHINE.NR 2 :DURATION 5 :START.TIME NIL)
+                                    (MAKE-JOB-SHOP-TASK :JOB.NR 1 :TASK.NR 2 :MACHINE.NR 0 :DURATION 5 :START.TIME NIL))))))
+
 
 (defvar bar (make-job-shop-problem
                 :name "mt05"
