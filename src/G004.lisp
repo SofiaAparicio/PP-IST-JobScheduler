@@ -64,6 +64,7 @@
 		copy-state))
 
 (defun determine-start-time (state job-number task)
+	"Returns max (machine, machine+last-precedence-end-time"
 	(let ((machine-time (aref (job-state-machines state) (task-compact-machine.nr task)))
 		  (precedence-time 0)
 		  (last-precedence-task (first (aref (job-state-allocated-tasks state) job-number))))
@@ -73,6 +74,7 @@
 		(max machine-time precedence-time)))
 
 (defun allocate-task! (state job-number)
+	"Changes job-state after allocating the job-number's task with more priority"
 	(let* ((task (first (aref (job-state-non-allocated-tasks state) job-number)))
 		   (task-time-start (determine-start-time state job-number task))
 		   (machine-nr (task-compact-machine.nr task)))
@@ -246,6 +248,7 @@
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
 
 (defun heuristic-2 (state)
+	"same as 1 but more refined yet something looks wrong"
 	(let* ((unnaloc (job-state-non-allocated-tasks state))
 		   (num-machines (length (job-state-machines state)))
 		   (machines-times (make-array num-machines :initial-element 0))
@@ -271,6 +274,40 @@
 				     			   (length (aref machines-assigned-jobs machine-nr)))))))))
 	remaining-time))
 
+
+(defun heuristic-2 (state)
+	"same as 1 but more refined yet something looks wrong"
+	(let* ((unnaloc (job-state-non-allocated-tasks state))
+		   (num-machines (length (job-state-machines state)))
+		   (machines-times (make-array num-machines :initial-element 0))
+   		   (machines-assigned-jobs (make-array num-machines :initial-element (list)))
+   		   (max-time 0)
+   		   (machine-nr-max-time nil))
+
+	(dotimes (job-index (length unnaloc))
+		(dolist (task (aref unnaloc job-index))
+			(let ((machine-nr (task-compact-machine.nr task)))
+
+				(setf (aref machines-times machine-nr)
+					  (+ (aref machines-times machine-nr)
+					  	 (task-compact-duration task)))
+				(when (null (find job-index (aref machines-assigned-jobs machine-nr)))
+					  (setf (aref machines-assigned-jobs machine-nr) (cons job-index (aref machines-assigned-jobs machine-nr)))))))
+
+
+
+	(dotimes (machine-nr num-machines)
+		(when (not (null (aref machines-assigned-jobs machine-nr)))
+			(let ((time (aref machines-times machine-nr)))
+				(when (> time max-time)
+					(setf max-time time)
+					(setf machine-nr-max-time machine-nr)))))
+
+	(format t "machines: ~S    max-time: ~D  ~%" max-time machines-times)
+
+	(+ 	(* 0.55 max-time
+		(* 0.45 (/ max-time
+				  (length (aref machines-assigned-jobs machine-nr-max-time))))))))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
@@ -426,7 +463,7 @@
 				(setf result-state (procura (cria-problema initial-state 
 								 		(list #'sucessors)
 									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-1
+									   	:heuristica #'heuristic-2
 									   	:estado= #'equals-job-states
 									   	:custo #'cost-transition-max-machines) 
 								   	"a*"
