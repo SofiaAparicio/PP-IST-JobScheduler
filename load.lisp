@@ -14,5 +14,5 @@
 (load-compile-file "job-shop-problemas-modelos.lisp")
 (load-compile-file "job-shop-problemas-v1.lisp")
 (load-compile-file "procura.lisp")
-(load-compile-file "GXXX.lisp")
+(load-compile-file "G004.lisp")
 (load-compile-file "test.lisp")
