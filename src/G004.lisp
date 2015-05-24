@@ -275,7 +275,7 @@
 	remaining-time))
 
 
-(defun heuristic-2 (state)
+(defun heuristic-3 (state)
 	"same as 1 but more refined yet something looks wrong"
 	(let* ((unnaloc (job-state-non-allocated-tasks state))
 		   (num-machines (length (job-state-machines state)))
