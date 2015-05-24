@@ -334,6 +334,7 @@
 				(setf result-state (cal-a-start-melhor-heuristica initial-state))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
+				(setf result-state (first (last (first result-state))))
 				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))
 				)
 
@@ -343,16 +344,20 @@
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
 				(setf result-state (first (last (first result-state))))
+				;(setf result-state (convert-job-state-to-job-shop-problem (first (last (first result-state))) "ihihiihih"))	
 				)
 			((equal strategy "4") ; sondagem.iterativa") 
 				(setf result-state (first (last (cal-sondagem-iterativa initial-state)))))
 			((equal strategy "5"); ILDS") 
-				(cal-ilds initial-state))
+				(setf result-state (cal-ilds initial-state)))
 			((equal strategy "6");abordagem.alternativa")
 				(setf result-state (johnsons-algorithm initial-state))))
 
 		;(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
-		result-state))
+
+		;result-state
+		(convert-job-state-to-job-shop-problem result-state "ola")
+		))
 
 (defun cal-melhor-abordagem (initial-state)
 	 (procura (cria-problema initial-state 
