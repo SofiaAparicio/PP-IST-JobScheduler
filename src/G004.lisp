@@ -51,7 +51,7 @@
 						(setf (aref new-map job-index) (copy-list-tasks (aref map job-index))))
 				new-map)))
 	(make-job-state
-		:machines (copy-array (job-state-machines state))
+		:machines (copy-array (job-state-machines state))()
 		:previous-cost (job-state-previous-cost state)
 		:allocated-tasks (copy-job-tasks-map (job-state-allocated-tasks state))
 		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))
