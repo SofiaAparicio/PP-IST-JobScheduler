@@ -453,6 +453,36 @@
 		(setf (problema-objectivo? sub-problem) #'objective?)
 
 		(procura sub-problem "a*" :espaco-em-arvore? t)))
+;(calendarização prof1 "7")
+
+(defun iterative-search-aux (problem total-tasks count)
+	(procura (cria-problema (problema-estado-inicial problem) 
+		 		(list #'sucessors)
+			   	:objectivo? (lambda (state) (= (- total-tasks count) (job-state-num-unalloc state))) 
+			   	:heuristica #'heuristic-1
+			   	:estado= #'equals-job-states
+			   	:custo #'cost-transition-max-machines)
+			"a*"
+			:espaco-em-arvore? t))
+
+(defun iterative-search (problem)
+	(let* ((initial-state (problema-estado-inicial problem))
+		   (num-tasks (job-state-num-unalloc initial-state))
+		   (interval 5)
+		   (times (nth-value 0 (floor num-tasks interval)))
+		   (final-state nil)
+		   (last-iteration 0))
+
+
+	(dotimes (i times)
+		;(format t "Going until ~D ~%" (* i interval))
+		(setf (problema-estado-inicial problem) (first (last (first (iterative-search-aux problem num-tasks (* i interval))))))
+		(setf last-iteration (* i interval)))
+
+	(when (< last-iteration num-tasks)
+		  (setf final-state (iterative-search-aux problem num-tasks num-tasks)))
+
+	final-state))()
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -479,9 +509,9 @@
 									:espaco-em-arvore? t)))
 			((equal strategy "2");"a*.melhor.heuristica") 
 				(setf result-state (procura (cria-problema initial-state 
-								 		(list #'sucessors)
+								 		(list #'sucessors-with-cut)
 									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-2
+									   	:heuristica #'heuristic-1
 									   	:estado= #'equals-job-states
 									   	:custo #'cost-transition-max-machines) 
 								   	"a*"
@@ -507,7 +537,7 @@
 			((equal strategy "6");abordagem.alternativa")
 				(setf result-state (johnsons-algorithm initial-state)))
 			((equal strategy "7")
-				(setf result-state (hybrid-search (cria-problema initial-state 
+				(setf result-state (iterative-search (cria-problema initial-state 
 								 		(list #'sucessors)
 									   	:objectivo? #'objective? 
 									   	:heuristica #'heuristic-1
