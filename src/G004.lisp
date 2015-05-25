@@ -344,7 +344,7 @@
 	(let* ((state (problema-estado-inicial problema))
 		   (objectivo? (problema-objectivo? problema))
 		   (heuristica (problema-heuristica problema))
-		   (profundidade-maxima (job-state-num-unalloc state state)))
+		   (profundidade-maxima (job-state-num-unalloc state)))
 		(labels ((bigger-heuristic (state1 state2)
 					(> (funcall heuristica state1) (funcall heuristica state2)))
 				 (ILDS-Descrepancia (estado descrepancia &optional (profundidade-actual 0)) 
@@ -436,6 +436,24 @@
 				(setf state (allocate-next-best-task state)))
 			state)))
 
+
+(defun hybrid-search (problem)
+	(let* ((initial-state (problema-estado-inicial problem))
+		   (num-tasks (job-state-num-unalloc initial-state))
+		   (pivot (nth-value 0 (- num-tasks (floor num-tasks 5))))
+		   (final-state nil)
+		   (sub-problem (cria-problema initial-state 
+								 		(list #'sucessors)
+									   	:objectivo? (lambda (state) (= (job-state-num-unalloc state) pivot)) 
+									   	:heuristica #'heuristic-1
+									   	:estado= #'equals-job-states
+									   	:custo #'cost-transition-max-machines)))
+
+		(setf (problema-estado-inicial sub-problem) (first (last (first (sondagem-iterativa sub-problem )))))
+		(setf (problema-objectivo? sub-problem) #'objective?)
+
+		(procura sub-problem "a*" :espaco-em-arvore? t)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -487,21 +505,28 @@
 							:heuristica #'heuristic-1))))
 
 			((equal strategy "6");abordagem.alternativa")
-				(setf result-state (johnsons-algorithm initial-state))))
+				(setf result-state (johnsons-algorithm initial-state)))
+			((equal strategy "7")
+				(setf result-state (hybrid-search (cria-problema initial-state 
+								 		(list #'sucessors)
+									   	:objectivo? #'objective? 
+									   	:heuristica #'heuristic-1
+									   	:custo #'cost-transition-max-machines)))))
 
 		;por cada estrategia a devovler uma lista (lista-estados nil nos-gerados nos-expandidos)
 		(cond ((or (equal strategy "1");"melhor.abordagem")
 			       (equal strategy "2");"a*.melhor.heuristica")
 			       (equal strategy "3")
-			       (equal strategy "4"))
+			       (equal strategy "4")
+			       (equal strategy "7"))
 				(setf *nos-gerados* (fourth result-state))
 				(setf *nos-expandidos* (third result-state))
 				(setf result-state (first (last (first result-state))))))
 
 		(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 
-		;result-state
-		(convert-job-state-to-job-shop-problem result-state name-problem)
+		result-state
+		;(convert-job-state-to-job-shop-problem result-state name-problem)
 		))
 
 
