@@ -235,8 +235,7 @@
 
 (defun heuristic-1 (state)
 	"Peso relativo entre se as tarefas vao ser executas em paralelo ou não ignorando as restricões de máquinas"
-	(let* ((num-unallocated-tasks (job-state-num-unalloc state))
-		   (sum-durations-non-allocated-tasks 0)
+	(let* ((sum-durations-non-allocated-tasks 0)
 		   (num-machines (length (job-state-machines state)))
 		   (unalloc (job-state-non-allocated-tasks state)))
 
@@ -441,7 +440,6 @@
 	(let* ((initial-state (problema-estado-inicial problem))
 		   (num-tasks (job-state-num-unalloc initial-state))
 		   (pivot (nth-value 0 (- num-tasks (floor num-tasks 5))))
-		   (final-state nil)
 		   (sub-problem (cria-problema initial-state 
 								 		(list #'sucessors)
 									   	:objectivo? (lambda (state) (= (job-state-num-unalloc state) pivot)) 
