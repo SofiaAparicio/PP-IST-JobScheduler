@@ -51,7 +51,7 @@
 						(setf (aref new-map job-index) (copy-list-tasks (aref map job-index))))
 				new-map)))
 	(make-job-state
-		:machines (copy-array (job-state-machines state))()
+		:machines (copy-array (job-state-machines state))
 		:previous-cost (job-state-previous-cost state)
 		:allocated-tasks (copy-job-tasks-map (job-state-allocated-tasks state))
 		:non-allocated-tasks (copy-job-tasks-map (job-state-non-allocated-tasks state))
@@ -156,72 +156,6 @@
 	(= 0 (job-state-num-unalloc state)))
 
 
-;PARA SER CONFLITO:
-;|   MINHA TAREFA     |
-;           | OUTRA TAREFA   |
-; PARA NÃO SER CONFLITO
-;                     | OUTRA TAREFA |
-;  | other1 | other2 |
-; ATTENTION: SOMETHING IS WRONG BUT IT SEEMS NOT. CHECK FOO3 FOO4 FOO5
-(defun sucessors-with-cut (state)
-	(labels ((n-list (n)
-			  (if (zerop n) nil
-			      (cons (- n 1) (n-list (1- n)))))
-
-			(is-conflicting-task (state start-time1 end-time1 machine-nr1 job-index2 lst-tasks &optional (end-time-previous 0))
-				(let ((task2 (first lst-tasks)))
-					(if (null task2)
-						nil
-						(let* ((start-time2 (determine-start-time state job-index2 task2))
-							   (duration (task-compact-duration task2))
-							   (end-time2 (+ start-time2 duration))
-							   (machine-nr2 (task-compact-machine.nr task2)))
-							;(format t "    with [~D]: ~S ~%" job-index2 task2)
-							(setf start-time2 (max start-time2 end-time-previous))
-							(setf end-time2 (max end-time2 (+ start-time2 duration)))
-							;(format t "    start-time2: ~D   end-time2: ~D ~%" start-time2 end-time2)
-							(cond ((>= start-time2 end-time1) nil)
-								  ((and (>= start-time2 start-time1) 
-								  		(= machine-nr1 machine-nr2)) 
-								  		;(format t "SAME MACHINE CONLIFITING~%") 
-								  		t)
-								  (t (is-conflicting-task state start-time1 end-time1 machine-nr1 job-index2 (rest lst-tasks) (+ start-time2 duration))))))))
-
-			 (is-confliting (job-index1 pending-processing unallocated-tasks)
-				"check if there is another job in the same machine in the same temporal space confliting"
-				;(format t "HEREEEE ~D ~%" job-index1)
-				(let* ((task1 (first (aref unallocated-tasks job-index1)))
-					   (machine-nr1 (task-compact-machine.nr task1))
-					   (start-time1 (determine-start-time state job-index1 task1))
-					   (end-time1 (+ start-time1 (task-compact-duration task1))))
-					(dolist (job-index2 pending-processing)
-						(when (not (= job-index2 job-index1))
-							;(format t "Comparing task[~D] ~S startime1: ~D   end-time2: ~D     with... job-index2 ~D~%" job-index1 task1 start-time1 end-time1 job-index2)
-							(when (is-conflicting-task state start-time1 end-time1 machine-nr1 job-index2 (aref unallocated-tasks job-index2))
-								(return-from is-confliting t))))
-					;(format t "NOT CONFLITING-ALL-IS-GOOD~%")
-					nil)))
-
-	(let* ((unallocated-tasks (job-state-non-allocated-tasks state))
-		   (sucessores (list))
-		   (cost-parent-state (cost-state-max-start-time state))
-		   (pending-processing (n-list (length unallocated-tasks))))
-		(dotimes (job-index (length unallocated-tasks))
-			(setf pending-processing (remove job-index pending-processing))
-			;(format t "at job-index ~D ~%" job-index)
-			(when (and (not (null (aref unallocated-tasks job-index)))
-					   (not (null pending-processing))
-					   (not (is-confliting job-index pending-processing unallocated-tasks)))
-					
-				  (let ((sucessor (result-allocate-task state job-index)))
-					(setf (job-state-previous-cost sucessor) cost-parent-state)
-					(return-from sucessors-with-cut (list sucessor)))))
-
-		;if they are no potential cuts, generate for every job
-		(setf sucessores (sucessors state))
-		;(format t "number of sucessors: ~D~%" (length sucessores))
-		sucessores)))
-
 (defun sucessors (state)
 	(let ((unallocated-tasks (job-state-non-allocated-tasks state))
 		  (sucessores (list))
@@ -245,68 +179,6 @@
 
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
-
-(defun heuristic-2 (state)
-	"same as 1 but more refined yet something looks wrong"
-	(let* ((unnaloc (job-state-non-allocated-tasks state))
-		   (num-machines (length (job-state-machines state)))
-		   (machines-times (make-array num-machines :initial-element 0))
-   		   (machines-assigned-jobs (make-array num-machines :initial-element (list)))
-   		   (remaining-time 0))
-
-	(dotimes (job-index (length unnaloc))
-		(dolist (task (aref unnaloc job-index))
-			(let ((machine-nr (task-compact-machine.nr task)))
-
-				(setf (aref machines-times machine-nr)
-					  (+ (aref machines-times machine-nr)
-					  	 (task-compact-duration task)))
-				(when (null (find job-index (aref machines-assigned-jobs machine-nr)))
-					  (setf (aref machines-assigned-jobs machine-nr) (cons job-index (aref machines-assigned-jobs machine-nr)))))))
-
-	(dotimes (machine-nr num-machines)
-		(when (not (null (aref machines-assigned-jobs machine-nr)))
-			(setf remaining-time 
-				  (+ remaining-time 
-				     (+ (* 0.9 (aref machines-times machine-nr))
-				     	(* 0.1 (/ (aref machines-times machine-nr)
-				     			   (length (aref machines-assigned-jobs machine-nr)))))))))
-	remaining-time))
-
-
-(defun heuristic-3 (state)
-	"same as 1 but more refined yet something looks wrong"
-	(let* ((unnaloc (job-state-non-allocated-tasks state))
-		   (num-machines (length (job-state-machines state)))
-		   (machines-times (make-array num-machines :initial-element 0))
-   		   (machines-assigned-jobs (make-array num-machines :initial-element (list)))
-   		   (max-time 0)
-   		   (machine-nr-max-time nil))
-
-	(dotimes (job-index (length unnaloc))
-		(dolist (task (aref unnaloc job-index))
-			(let ((machine-nr (task-compact-machine.nr task)))
-
-				(setf (aref machines-times machine-nr)
-					  (+ (aref machines-times machine-nr)
-					  	 (task-compact-duration task)))
-				(when (null (find job-index (aref machines-assigned-jobs machine-nr)))
-					  (setf (aref machines-assigned-jobs machine-nr) (cons job-index (aref machines-assigned-jobs machine-nr)))))))
-
-
-
-	(dotimes (machine-nr num-machines)
-		(when (not (null (aref machines-assigned-jobs machine-nr)))
-			(let ((time (aref machines-times machine-nr)))
-				(when (> time max-time)
-					(setf max-time time)
-					(setf machine-nr-max-time machine-nr)))))
-
-	(format t "machines: ~S    max-time: ~D  ~%" max-time machines-times)
-
-	(+ 	(* 0.55 max-time
-		(* 0.45 (/ max-time
-				  (length (aref machines-assigned-jobs machine-nr-max-time))))))))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
@@ -436,41 +308,23 @@
 			state)))
 
 
-(defun hybrid-search (problem)
-	(let* ((initial-state (problema-estado-inicial problem))
-		   (num-tasks (job-state-num-unalloc initial-state))
-		   (pivot (nth-value 0 (- num-tasks (floor num-tasks 5))))
-		   (sub-problem (cria-problema initial-state 
-								 		(list #'sucessors)
-									   	:objectivo? (lambda (state) (= (job-state-num-unalloc state) pivot)) 
-									   	:heuristica #'heuristic-1
-									   	:estado= #'equals-job-states
-									   	:custo #'cost-transition-max-machines)))
-
-		(setf (problema-estado-inicial sub-problem) (first (last (first (sondagem-iterativa sub-problem )))))
-		(setf (problema-objectivo? sub-problem) #'objective?)
-
-		(procura sub-problem "a*" :espaco-em-arvore? t)))
-;(calendarização prof1 "7")
-
-(defun iterative-search-aux (problem total-tasks count)
-	(procura (cria-problema (problema-estado-inicial problem) 
-		 		(list #'sucessors)
-			   	:objectivo? (lambda (state) (= (- total-tasks count) (job-state-num-unalloc state))) 
-			   	:heuristica #'heuristic-1
-			   	:estado= #'equals-job-states
-			   	:custo #'cost-transition-max-machines)
-			"a*"
-			:espaco-em-arvore? t))
-
 (defun iterative-search (problem)
+	(labels ((iterative-search-aux (problem total-tasks count)
+				(procura (cria-problema (problema-estado-inicial problem) 
+			 		(list #'sucessors)
+				   	:objectivo? (lambda (state) (= (- total-tasks count) (job-state-num-unalloc state))) 
+				   	:heuristica #'heuristic-1
+				   	:estado= #'equals-job-states
+				   	:custo #'cost-transition-max-machines)
+				"a*"
+				:espaco-em-arvore? t)))
+
 	(let* ((initial-state (problema-estado-inicial problem))
 		   (num-tasks (job-state-num-unalloc initial-state))
 		   (interval 5)
 		   (times (nth-value 0 (floor num-tasks interval)))
 		   (final-state nil)
 		   (last-iteration 0))
-
 
 	(dotimes (i times)
 		;(format t "Going until ~D ~%" (* i interval))
@@ -480,7 +334,7 @@
 	(when (< last-iteration num-tasks)
 		  (setf final-state (iterative-search-aux problem num-tasks num-tasks)))
 
-	final-state))()
+	final-state)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
