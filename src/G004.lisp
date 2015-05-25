@@ -179,6 +179,15 @@
 
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
+          
+          
+(defun start-time-sum (state)
+    (let ((sum-start-time 0)
+            (unalloc (job-state-non-allocated-tasks state))
+            (n-unallocs (length unalloc)))
+        	(dotimes (job-index (length unalloc))
+                (setf sum-start-time (+ sum-start-time (aref (aref unalloc job-index) 0))))
+                (* n-unnalocs sum-start-time)))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
