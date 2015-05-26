@@ -188,6 +188,26 @@
         	(dotimes (job-index (length unalloc))
                 (setf sum-start-time (+ sum-start-time (aref (aref unalloc job-index) 0))))
                 (* n-unnalocs sum-start-time)))
+				
+(defun most-duration-left (state)
+	(labels ((sum-duration (tasklist &optional (total 0))
+		 (if (null tasklist)
+			 total
+			 (sum-duration (rest tasklist) (+ total (task-compact-duration (first tasklist))))))
+			 (sum-duration-job-array (job-array)
+				(let ((total 0))
+					(dotimes (i (length job-array))
+						(setf total (+ total (sum-duration (aref job-array i)))))
+					total)))
+	
+				(let* ((non-allocated-tasks (job-state-non-allocated-tasks state))
+						(allocated-tasks (job-state-allocated-tasks state))
+						(njobs (length non-allocated-tasks))
+						(duration-non-allocated-tasks (sum-duration-job-array non-allocated-tasks))
+						(duration-allocated-tasks (sum-duration-job-array allocated-tasks))
+						(total-duration (+ duration-allocated-tasks duration-non-allocated-tasks))
+						(n-unalloc (job-state-num-unalloc state)))
+	(\ (* n-unalloc (-  total-duration (\ total-duration (+ duration-allocated-tasks 1)))) (length (job-state-machines state))))))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
@@ -226,7 +246,7 @@
 		   (heuristica (problema-heuristica problema))
 		   (profundidade-maxima (job-state-num-unalloc state)))
 		(labels ((bigger-heuristic (state1 state2)
-					(> (funcall heuristica state1) (funcall heuristica state2)))
+					(< (funcall heuristica state1) (funcall heuristica state2)))
 				 (ILDS-Descrepancia (estado descrepancia &optional (profundidade-actual 0)) 
 					(if (funcall objectivo? estado)
 						(return-from ILDS-Descrepancia estado)
