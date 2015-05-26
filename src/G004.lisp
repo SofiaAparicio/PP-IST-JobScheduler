@@ -183,11 +183,12 @@
           
 (defun start-time-sum (state)
     (let ((sum-start-time 0)
-            (unalloc (job-state-non-allocated-tasks state))
-            (n-unallocs (length unalloc)))
-        	(dotimes (job-index (length unalloc))
-                (setf sum-start-time (+ sum-start-time (aref (aref unalloc job-index) 0))))
-                (* n-unnalocs sum-start-time)))
+            (alloc (job-state-allocated-tasks state))
+            (n-allocs (length alloc)))
+        	(dotimes (job-index (length alloc))
+				(when (not (null (first (aref alloc job-index))))
+					(setf sum-start-time (+ sum-start-time (task-compact-start.time (first (aref alloc job-index)))))))
+            (* n-allocs sum-start-time)))
 				
 (defun most-duration-left (state)
 	(labels ((sum-duration (tasklist &optional (total 0))
@@ -207,7 +208,7 @@
 						(duration-allocated-tasks (sum-duration-job-array allocated-tasks))
 						(total-duration (+ duration-allocated-tasks duration-non-allocated-tasks))
 						(n-unalloc (job-state-num-unalloc state)))
-	(\ (* n-unalloc (-  total-duration (\ total-duration (+ duration-allocated-tasks 1)))) (length (job-state-machines state))))))
+	(/	(* n-unalloc (-  total-duration (/ total-duration (+ duration-allocated-tasks 1)))) (length (job-state-machines state))))))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
@@ -376,7 +377,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
+(defun calendarizacao (problem strategy)
+	(calendarização problem strategy));beutifru
 (defun calendarização (problem strategy)
 	"Given a problem and a strategy (melhor.abordagem, a*.melhor.heuristica, a*.melhor.heuristica.alternativa,
 	sondagem.iterativa, ILDS or abordagem.alternativa), returns the result-state"
@@ -408,7 +410,7 @@
 				(setf result-state (procura (cria-problema initial-state 
 								 		(list #'sucessors)
 									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-4
+									   	:heuristica #'start-time-sum
 									   	:custo #'cost-transition-max-machines) 
 								   	"a*"
 		   							:espaco-em-arvore? t)))
@@ -454,8 +456,8 @@
 
 
 (defun determine-best-strategy ()
-	(let ((probs (list prof1 prof2 prof3 prof4 prof5))
-		  (strategies (list "4" "6"))
+	(let ((probs (list prof1 prof2 prof3 prof5))
+		  (strategies (list "1" "3"))
 		  (current-best 99999999)
 		  (best-strategy nil))
 		(dolist (strategy strategies)
