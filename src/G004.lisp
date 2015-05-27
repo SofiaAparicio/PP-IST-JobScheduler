@@ -182,12 +182,12 @@
           
           
 (defun start-time-sum (state)
-    (let ((sum-start-time 0)
-            (alloc (job-state-allocated-tasks state))
-            (n-allocs (length alloc)))
-        	(dotimes (job-index (length alloc))
-				(when (not (null (first (aref alloc job-index))))
-					(setf sum-start-time (+ sum-start-time (task-compact-start.time (first (aref alloc job-index)))))))
+    (let* ((sum-start-time 0)
+            (allocated-tasks (job-state-allocated-tasks state))
+            (n-allocs (length allocated-tasks)))
+        	(dotimes (job-index n-allocs)
+				(when (not (null (first (aref allocated-tasks job-index))))
+					(setf sum-start-time (+ sum-start-time (task-compact-start.time (first (aref allocated-tasks job-index)))))))
             (* n-allocs sum-start-time)))
 				
 (defun most-duration-left (state)
@@ -203,12 +203,12 @@
 	
 				(let* ((non-allocated-tasks (job-state-non-allocated-tasks state))
 						(allocated-tasks (job-state-allocated-tasks state))
-						(njobs (length non-allocated-tasks))
+						(n-machines (length (job-state-machines state)))
 						(duration-non-allocated-tasks (sum-duration-job-array non-allocated-tasks))
 						(duration-allocated-tasks (sum-duration-job-array allocated-tasks))
 						(total-duration (+ duration-allocated-tasks duration-non-allocated-tasks))
 						(n-unalloc (job-state-num-unalloc state)))
-	(/	(* n-unalloc (-  total-duration (/ total-duration (+ duration-allocated-tasks 1)))) (length (job-state-machines state))))))
+	(/	(* n-unalloc (-  total-duration (/ total-duration (+ duration-allocated-tasks 1)))) n-machines))))
 
 ;proxima heuristica, contar o numero de conflitos de cada maquina
 
