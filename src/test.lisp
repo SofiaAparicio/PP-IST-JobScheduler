@@ -1,3 +1,5 @@
+(in-package :user)
+
 (defvar foo (make-job-shop-problem
                 :name "mt06"
                 :n.jobs 2

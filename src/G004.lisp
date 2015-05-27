@@ -2,7 +2,7 @@
 ; Procura e Planeamento 2014/2015 - G004
 ;
 ; 72913 - Bruno Alexandre Pires Henriques
-; 72960 - Tiago Manuel Ferrão dos Santos
+; 72960 - Tiago Manuel Ferro dos Santos
 ; 
 ; JobScheduler
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -168,7 +168,7 @@
 		sucessores))
 
 (defun heuristic-1 (state)
-	"Peso relativo entre se as tarefas vao ser executas em paralelo ou não ignorando as restricões de máquinas"
+	"Peso relativo entre se as tarefas vao ser executas em paralelo ou no ignorando as restrices de mquinas"
 	(let* ((sum-durations-non-allocated-tasks 0)
 		   (num-machines (length (job-state-machines state)))
 		   (unalloc (job-state-non-allocated-tasks state)))
@@ -378,8 +378,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun calendarizacao (problem strategy)
-	(calendarização problem strategy));beutifru
-(defun calendarização (problem strategy)
+	(calendarizao problem strategy));beutifru
+(defun calendarizao (problem strategy)
 	"Given a problem and a strategy (melhor.abordagem, a*.melhor.heuristica, a*.melhor.heuristica.alternativa,
 	sondagem.iterativa, ILDS or abordagem.alternativa), returns the result-state"
 	(let ((name-problem (job-shop-problem-name problem))
@@ -443,7 +443,7 @@
 				(setf *nos-expandidos* (third result-state))
 				(setf result-state (first (last (first result-state))))))
 
-		(format t "~%Nós gerados: ~D ~%Nós expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
+		(format t "~%Ns gerados: ~D ~%Ns expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
 
 		result-state
 		;(convert-job-state-to-job-shop-problem result-state name-problem)
@@ -464,7 +464,7 @@
 			(let ((sum-costs 0))
 				(dolist (p probs)
 					(format t "-- solving problem ~S~%" (job-shop-problem-name p))
-					(setf sum-costs (+ sum-costs (cost-state-max-start-time (calendarização p strategy)))))
+					(setf sum-costs (+ sum-costs (cost-state-max-start-time (calendarizao p strategy)))))
 
 				(format t "sum-costs ~d~%" sum-costs)
 				(when (< sum-costs current-best)
