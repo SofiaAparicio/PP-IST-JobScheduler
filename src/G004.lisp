@@ -92,7 +92,8 @@
 (defun job-shop-problem-to-job-state (problem)
 	"Converts job-shop-problem to job-state"
     (labels ((order-by-task.nr (x y)  (< (job-shop-task-task.nr x) (job-shop-task-task.nr y))) ; guarantees that tasks are ordered by tasknr
-    	   	 (job-shop-tasks-to-tasks-compact (lst) (map 'list (lambda (x) (job-shop-task-to-task-compact x)) lst))
+    	   	 (order-by-job.nr (x y)  (< (job-shop-job-job.nr x) (job-shop-job-job.nr y)))
+			 (job-shop-tasks-to-tasks-compact (lst) (map 'list (lambda (x) (job-shop-task-to-task-compact x)) lst))
     	   	 (job-shop-task-to-task-compact (task) (make-task-compact
 														:machine.nr (job-shop-task-machine.nr task)
 														:duration (job-shop-task-duration task)
@@ -100,7 +101,7 @@
         (let* ((num-machines (job-shop-problem-n.machines problem))
     	   (num-jobs (job-shop-problem-n.jobs problem))
     	   (new-state (empty-job-state num-machines num-jobs)))
-        (dolist (job (job-shop-problem-jobs problem))
+        (dolist (job (sort (job-shop-problem-jobs problem) #'order-by-job.nr))
         	(setf (job-state-num-unalloc new-state) (+ (job-state-num-unalloc new-state) (length (job-shop-job-tasks job))))
             (setf (aref (job-state-non-allocated-tasks new-state) (job-shop-job-job.nr job))
             	  (job-shop-tasks-to-tasks-compact (sort (job-shop-job-tasks job) #'order-by-task.nr))))
