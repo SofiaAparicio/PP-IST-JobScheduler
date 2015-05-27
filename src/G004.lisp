@@ -159,7 +159,7 @@
 					(setf sucessores (cons sucessor sucessores)))))
 		sucessores))
 
-(defun heuristic-1 (state)
+(defun estimate-time-left-part-sequential-part-paralel (state)
 	"Peso relativo entre se as tarefas vao ser executas em paralelo ou no ignorando as restrices de mquinas"
 	(let* ((sum-durations-non-allocated-tasks 0)
 		   (num-machines (length (job-state-machines state)))
@@ -171,7 +171,7 @@
 
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
-          				
+
 (defun most-duration-left (state)
 	(labels ((sum-duration (tasklist &optional (total 0))
 		 (if (null tasklist)
@@ -266,7 +266,7 @@
 				(procura (cria-problema (problema-estado-inicial problem) 
 			 		(list #'sucessors)
 				   	:objectivo? (lambda (state) (= (- total-tasks count) (job-state-num-unalloc state))) 
-				   	:heuristica #'heuristic-1
+				   	:heuristica #'estimate-time-left-part-sequential-part-paralel
 				   	:estado= #'equals-job-states
 				   	:custo #'cost-transition-max-machines)
 				"a*"
@@ -309,58 +309,44 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun calendarizacao (problem strategy)
+(defun calendarizacao (problem strategy &key (debug nil) (verbose nil))
 	"Given a problem and a strategy (melhor.abordagem, a*.melhor.heuristica, a*.melhor.heuristica.alternativa,
 	sondagem.iterativa, ILDS or abordagem.alternativa), returns the result-state"
 
-	(let ((result-state nil)
-		  (solution nil)
-		  (generated-nodes 0)
-		  (expanded-nodes 0)
-		  (search-time nil))
-
-		(cond ((equal strategy "1");"melhor.abordagem") 
+	(let ((result-state nil))
+		(cond ((equal strategy "melhor.abordagem") 
 				(setf result-state (melhor-abordagem problem)))
-			  ((equal strategy "2");"a*.melhor.heuristica") 
+			  ((equal strategy "a*.melhor.heuristica") 
 				(setf result-state (a-star-best-heuristic problem)))
-
-			  ((equal strategy "3");"a*.melhor.heuristica.alternativa") 
+			  ((equal strategy "a*.melhor.heuristica.alternativa") 
 				(setf result-state (a-star-alternative-heuristic problem)))
-			  ((equal strategy "4");"sondagem.iterativa") 
+			  ((equal strategy "sondagem.iterativa") 
 				(setf result-state (sondagem-iterativa problem)))
-			  ((equal strategy "5");"ILDS") 
+			  ((equal strategy "ILDS") 
 				(setf result-state (ilds problem)))
-			  ((equal strategy "6");"abordagem.alternativa")
+			  ((equal strategy "abordagem.alternativa")
 				(setf result-state (melhor-abordagem problem))))
 
-
-		(setf generated-nodes (fourth result-state))
-		(setf expanded-nodes (third result-state))
-		(setf search-time (second result-state))
-		(setf solution (convert-job-state-to-lst-tasks (first result-state)))
-
-
-		(format t "~%Generated nodes: ~D ~%Expanded nodes: ~D ~% Search-time: ~D ~% " generated-nodes expanded-nodes search-time)
-
-		solution
-		))
-
+		(if debug
+			(progn 
+				(when verbose 
+					(format t "~%Generated nodes: ~D ~%Expanded nodes: ~D ~%Search-time: ~D ~% " (fourth result-state) (third result-state) (second result-state)))
+				result-state)
+			(convert-job-state-to-lst-tasks (first result-state)))))
 
 (defun melhor-abordagem (problem)
-	(let* ((initial-state (job-shop-problem-to-job-state problem)))
-
-	(iterative-search (cria-problema initial-state 
+	(iterative-search (cria-problema (job-shop-problem-to-job-state problem) 
 					 		(list #'sucessors)
 						   	:objectivo? #'objective? 
-						   	:heuristica #'heuristic-1
-						   	:custo #'cost-transition-max-machines))))
+						   	:heuristica #'estimate-time-left-part-sequential-part-paralel
+						   	:custo #'cost-transition-max-machines)))
 
 (defun a-star-best-heuristic (problem)
 	(let* ((initial-state (job-shop-problem-to-job-state problem))
 		   (result (procura (cria-problema initial-state 
 							 		(list #'sucessors)
 								   	:objectivo? #'objective? 
-								   	:heuristica #'heuristic-1
+								   	:heuristica #'estimate-time-left-part-sequential-part-paralel
 								   	:estado= #'equals-job-states
 								   	:custo #'cost-transition-max-machines)
 								"a*"
@@ -392,12 +378,10 @@
 
 
 (defun ilds (problem)
-	(let* ((initial-state (job-shop-problem-to-job-state problem)))
-
-	(ILDS-job-shop (cria-problema initial-state
+	(ILDS-job-shop (cria-problema (job-shop-problem-to-job-state problem)
 							(list #'sucessors)
 							:objectivo? #'objective? 
-							:heuristica #'heuristic-1))))
+							:heuristica #'estimate-time-left-part-sequential-part-paralel)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   UTILITARY AND DEBUG   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -405,23 +389,34 @@
 
 
 (defun determine-best-strategy ()
-;	(labels ((get-cost-solution (tasks)
-;			(dolist (task solutions)
+	(let ((probs (list 	prof1 
+						prof2 
+						prof3 
+						;prof4 
+						prof5))
+		  (strategies (list "melhor.abordagem"
+		  					"a*.melhor.heuristica" 
+		  					"a*.melhor.heuristica.alternativa" 
+		  					"sondagem.iterativa" 
+		  					"ILDS" 
+		  					"abordagem.alternativa"))
 
-;				))))
-	(let ((probs (list prof1 prof2 prof3 prof5))
-		  (strategies (list "1" "3"))
 		  (current-best 99999999)
 		  (best-strategy nil))
 		(dolist (strategy strategies)
 			(let ((sum-costs 0))
+				(format t "~%~%Strategy: ~S~%" strategy)
 				(dolist (p probs)
-					(format t "-- solving problem ~S~%" (job-shop-problem-name p))
-					(setf sum-costs (+ sum-costs (cost-state-max-start-time (calendarizao p strategy)))))
-
-				(format t "sum-costs ~d~%" sum-costs)
+					(format t "== Solving problem: ~S~%" (job-shop-problem-name p))
+					(let* ((result (calendarizacao p strategy :debug t :verbose nil))
+						   (cost-solution (cost-state-max-start-time (first result))))
+						(setf sum-costs (+ sum-costs cost-solution))
+						(format t "==== Cost: ~D~%" cost-solution)
+						(format t "==== Nodes generated: ~D~%" (fourth result))
+						(format t "==== Nodes expanded: ~D~%" (third result)))
 				(when (< sum-costs current-best)
-					(format t "current-best ~d -> ~d~%" current-best sum-costs)
+					(format t "==== (total-sum ~D) is better than ~S (total-sum ~D)~%" strategy sum-costs best-strategy current-best)
 					(setf current-best sum-costs)
-					(setf best-strategy strategy))))
-	current-best))
+					(setf best-strategy strategy))
+				(format t "==== Total Cost: ~D~%" sum-costs))))
+		(format t "Best strategy: ~S with total-sum ~D" best-strategy current-best)))
