@@ -196,7 +196,7 @@
 						(duration-allocated-tasks (sum-duration-job-array allocated-tasks))
 						(total-duration (+ duration-allocated-tasks duration-non-allocated-tasks))
 						(n-unalloc (job-state-num-unalloc state)))
-	(/	(* n-unalloc (-  total-duration (/ total-duration (+ duration-allocated-tasks 1)))) n-machines))))
+	(/ (-  (+ (* n-unalloc total-duration) 1) (/ (+ total-duration 1) (+ duration-allocated-tasks 1))) n-machines))))
 
 ;;;;
 ;;;; Search Strategies
