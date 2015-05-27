@@ -319,3 +319,104 @@
 					;(print copy-state)
 					)))
 		copy-state)))
+
+
+(defun johnsons-algorithm (initial-state)
+	"johnsons-algorithm for job-scheduling. For N machines, the heuristic is assuming that there are only two machines and then apply the johnsons-algorithm that
+	it is optimal for two machines"
+	(labels ((determine-minimum-job (lst-jobs m1 m2)
+				(let* ((min-value 99999999)
+					   (min-job nil)
+					   (first-machine nil))
+
+					(dolist (job-id lst-jobs)
+						(let ((m1v (gethash job-id m1))
+							  (m2v (gethash job-id m2))
+							  (min-mv nil))
+							;some machines may not have jobs allocated
+
+							(setf min-mv (cond ((= m1v 0) m2v)
+								  			   ((= m2v 0) m1v)
+								  			   (t (min m1v m2v))))
+							(if (= min-mv m1v)
+								(progn 
+									(setf min-value m1v)
+									(setf min-job job-id)
+									(setf first-machine t))
+								(progn 
+									(setf min-value m2v)
+								  	(setf min-job job-id)
+								  	(setf first-machine nil)))))
+					(list min-job first-machine)))
+
+			(allocate-next-best-task (state)
+				(let ((pivot (nth-value 0 (floor (length (job-state-machines state)) 2)))
+					  (job-sort (list))
+					  (unnaloc (job-state-non-allocated-tasks state))
+					  (m1 (make-hash-table))
+					  (m2 (make-hash-table))
+					  (pending-jobs (list)))
+
+					(dotimes (job-index (length unnaloc))
+						(let ((task (first (aref unnaloc job-index))))
+							(when (not (null task))
+								(setf pending-jobs (cons job-index pending-jobs))
+								(setf (gethash job-index m1) 0)
+								(setf (gethash job-index m2) 0)
+								(if (< (task-compact-machine.nr task) pivot)
+									(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
+									(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task)))))))
+
+					(loop while (> (hash-table-count m1) 0) do
+						(let* ((minimum-job (determine-minimum-job pending-jobs m1 m2))
+							   (min-job-id (first minimum-job))
+							   (first-machine-p (second minimum-job)))
+							(if first-machine-p
+								(setf job-sort (nconc (list min-job-id) job-sort))
+								(setf job-sort (nconc job-sort (list min-job-id))))
+							(setf pending-jobs (remove min-job-id pending-jobs))
+							(remhash min-job-id m1)
+							(remhash min-job-id m2)))
+
+					;(format t "jobsort: ~S~%" job-sort)
+					(dolist (job-index job-sort)
+						;(format t "allocate-task ~D ~%" job-index)
+						(setf state (result-allocate-task state job-index)))
+					state)))
+
+		(let ((state (copy-job-state initial-state)))
+			(loop while (not (objective? state)) do
+				;(format t ">>Calling for the next task~%")
+				(setf state (allocate-next-best-task state)))
+			state)))
+
+
+(defun convert-job-state-to-job-shop-problem (state name)
+	"Converts job-state to job-shop-problem"
+	(let* ((alloc (job-state-allocated-tasks state))
+		   (num-jobs (length alloc))
+		   (result (make-job-shop-problem 
+						:name name
+						:n.jobs num-jobs
+						:n.machines (length (job-state-machines state))
+						:jobs (list))))
+	(dotimes (job-number num-jobs)
+		(let ((num-task 0)
+			  (job (make-job-shop-job 
+			  			:job.nr job-number
+			  			:tasks (list))))
+			;decreasing order of task-number
+			(dolist (task (aref alloc job-number))
+				(let* ((num-tasks (- (length (aref alloc job-number)) 1))
+					   (expanded-task (make-job-shop-task 
+										:job.nr job-number
+										:task.nr (- num-tasks num-task)
+										:machine.nr (task-compact-machine.nr task)
+										:duration (task-compact-duration task)
+										:start.time (task-compact-start.time task))))
+					(incf num-task)
+					(setf (job-shop-job-tasks job) (cons expanded-task (job-shop-job-tasks job)))))
+			(if (null (job-shop-problem-jobs result))
+				(setf (job-shop-problem-jobs result) (list job))
+				(setf (job-shop-problem-jobs result) (nconc (job-shop-problem-jobs result) (list job))))))
+	result))

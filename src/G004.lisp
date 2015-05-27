@@ -10,10 +10,6 @@
 
 (in-package :user)
 
-; ORDENAR JOBS
-; CORRIGIR ILDS
-; ARRANJAR HEURISICA DECENTE QUE NAO DA OUT OF MEMORY OU ARRANJAR OUTRA ABORDAGEM ALTERNATIVA (HIBRIDA ILDS + A*)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  STRUCTURE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -107,20 +103,17 @@
             	  (job-shop-tasks-to-tasks-compact (sort (job-shop-job-tasks job) #'order-by-task.nr))))
         new-state)))
 
-(defun convert-job-state-to-job-shop-problem (state name)
-	"Converts job-state to job-shop-problem"
+
+
+(defun convert-job-state-to-lst-tasks (state)
+	"Converts job-state to a list of tasks"
 	(let* ((alloc (job-state-allocated-tasks state))
 		   (num-jobs (length alloc))
-		   (result (make-job-shop-problem 
-						:name name
-						:n.jobs num-jobs
-						:n.machines (length (job-state-machines state))
-						:jobs (list))))
+		   (result (list)))
+
 	(dotimes (job-number num-jobs)
 		(let ((num-task 0)
-			  (job (make-job-shop-job 
-			  			:job.nr job-number
-			  			:tasks (list))))
+			  (lst-tasks (list))) 
 			;decreasing order of task-number
 			(dolist (task (aref alloc job-number))
 				(let* ((num-tasks (- (length (aref alloc job-number)) 1))
@@ -131,10 +124,8 @@
 										:duration (task-compact-duration task)
 										:start.time (task-compact-start.time task))))
 					(incf num-task)
-					(setf (job-shop-job-tasks job) (cons expanded-task (job-shop-job-tasks job)))))
-			(if (null (job-shop-problem-jobs result))
-				(setf (job-shop-problem-jobs result) (list job))
-				(setf (job-shop-problem-jobs result) (nconc (job-shop-problem-jobs result) (list job))))))
+					(setf lst-tasks (cons expanded-task lst-tasks))))
+			(setf result (nconc result lst-tasks))))
 	result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -180,17 +171,7 @@
 
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
-          
-          
-(defun start-time-sum (state)
-    (let* ((sum-start-time 0)
-            (allocated-tasks (job-state-allocated-tasks state))
-            (n-allocs (length allocated-tasks)))
-        	(dotimes (job-index n-allocs)
-				(when (not (null (first (aref allocated-tasks job-index))))
-					(setf sum-start-time (+ sum-start-time (task-compact-start.time (first (aref allocated-tasks job-index)))))))
-            (* n-allocs sum-start-time)))
-				
+          				
 (defun most-duration-left (state)
 	(labels ((sum-duration (tasklist &optional (total 0))
 		 (if (null tasklist)
@@ -211,42 +192,45 @@
 						(n-unalloc (job-state-num-unalloc state)))
 	(/	(* n-unalloc (-  total-duration (/ total-duration (+ duration-allocated-tasks 1)))) n-machines))))
 
-;proxima heuristica, contar o numero de conflitos de cada maquina
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; SEARCH STRATEGIES  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-(defun sondagem-iterativa (problema)
+(defun random-probe-iterative (problema)
 	"Sends a random probe throught the tree and if finds the goal state return. If not, send another random probe until it finds a solution."
-	(labels ((random-element (list)
-			  (if (= (length list) 0)
-				  nil
-				  (nth (random (length list)) list))))
-  (let ((initial-state (problema-estado-inicial problema))
-        (objectivo? (problema-objectivo? problema))
-        (caminho (list))
-        (found nil)
-        (nos-gerados 0)
-        (nos-expandidos 0))
-      (labels ((send-random-probe (estado)
-			(cond ((null estado) (list)) 
-				  ((funcall objectivo? estado) (setf found t) (list estado))
-				  (t (let* ((sucessores (problema-gera-sucessores problema estado))
-				  			(sucessor-aleatorio (random-element sucessores)))
-				  		(incf nos-expandidos)
-				  		(setf nos-gerados (+ nos-gerados (length sucessores)))
-						(append (list sucessor-aleatorio) (send-random-probe sucessor-aleatorio)))))))					
-		(loop while (not found)
-			do (setf caminho (send-random-probe initial-state)))
-		   (list caminho nil nos-expandidos nos-gerados)))))
+	(let ((initial-state (problema-estado-inicial problema))
+	      (objectivo? (problema-objectivo? problema))
+	      (caminho (list))
+	      (found nil)
+	      (*nos-gerados* 0)
+	      (*nos-expandidos* 0)
+	      (start-time (get-internal-run-time)))
+		(labels ((random-element (list)
+				  (if (= (length list) 0)
+					  nil
+					  (nth (random (length list)) list)))
+					 (send-random-probe (estado)
+					(cond ((null estado) (list)) 
+						  ((funcall objectivo? estado) (setf found t) (list estado))
+						  (t (let* ((sucessores (problema-gera-sucessores problema estado))
+						  			(sucessor-aleatorio (random-element sucessores)))
+						  		(incf *nos-expandidos*)
+						  		(setf *nos-gerados* (+ *nos-gerados* (length sucessores)))
+								(append (list sucessor-aleatorio) (send-random-probe sucessor-aleatorio)))))))					
+			(loop while (not found)
+				do (setf caminho (send-random-probe initial-state)))
+			   (list caminho (- (get-internal-run-time) start-time) *nos-expandidos* *nos-gerados*))))
 
 (defun 	ILDS-job-shop (problema)
 	"improved-limited-discrepancy-search"
 	(let* ((state (problema-estado-inicial problema))
 		   (objectivo? (problema-objectivo? problema))
 		   (heuristica (problema-heuristica problema))
-		   (profundidade-maxima (job-state-num-unalloc state)))
+		   (profundidade-maxima (job-state-num-unalloc state))
+	       (*nos-gerados* 0)
+	       (*nos-expandidos* 0)
+	       (start-time (get-internal-run-time)))
 		(labels ((bigger-heuristic (state1 state2)
 					(< (funcall heuristica state1) (funcall heuristica state2)))
 				 (ILDS-Descrepancia (estado descrepancia &optional (profundidade-actual 0)) 
@@ -255,6 +239,8 @@
 						(let* ((sucessores  (problema-gera-sucessores problema estado))
 							   (n-sucessores (length sucessores))
                                (resultado-actual nil))
+							(incf *nos-expandidos*)
+						  	(setf *nos-gerados* (+ *nos-gerados* (length sucessores)))
 							(if (equal 0 n-sucessores)
 								nil
 								(progn (sort sucessores #'bigger-heuristic);alegadamente destrutiva
@@ -273,78 +259,7 @@
 						(cond ((equal descrepancy profundidade-maxima) result);caso seja resultado vazio e ja' nao haja mais descrepancias a fazer, e' mesmo vazio
 							   ((null result) (descrepancy-loop state (+ descrepancy 1)));se houver descrepancias a fazer, fa'-las e chama de novo
 								 (t result)))));encontrou a solucao)
-			(descrepancy-loop state 0))))
-		
-
-(defun johnsons-algorithm (initial-state)
-	"johnsons-algorithm for job-scheduling. For N machines, the heuristic is assuming that there are only two machines and then apply the johnsons-algorithm that
-	it is optimal for two machines"
-	(labels ((determine-minimum-job (lst-jobs m1 m2)
-				(let* ((min-value 99999999)
-					   (min-job nil)
-					   (first-machine nil))
-
-					(dolist (job-id lst-jobs)
-						(let ((m1v (gethash job-id m1))
-							  (m2v (gethash job-id m2))
-							  (min-mv nil))
-							;some machines may not have jobs allocated
-
-							(setf min-mv (cond ((= m1v 0) m2v)
-								  			   ((= m2v 0) m1v)
-								  			   (t (min m1v m2v))))
-							(if (= min-mv m1v)
-								(progn 
-									(setf min-value m1v)
-									(setf min-job job-id)
-									(setf first-machine t))
-								(progn 
-									(setf min-value m2v)
-								  	(setf min-job job-id)
-								  	(setf first-machine nil)))))
-					(list min-job first-machine)))
-
-			(allocate-next-best-task (state)
-				(let ((pivot (nth-value 0 (floor (length (job-state-machines state)) 2)))
-					  (job-sort (list))
-					  (unnaloc (job-state-non-allocated-tasks state))
-					  (m1 (make-hash-table))
-					  (m2 (make-hash-table))
-					  (pending-jobs (list)))
-
-					(dotimes (job-index (length unnaloc))
-						(let ((task (first (aref unnaloc job-index))))
-							(when (not (null task))
-								(setf pending-jobs (cons job-index pending-jobs))
-								(setf (gethash job-index m1) 0)
-								(setf (gethash job-index m2) 0)
-								(if (< (task-compact-machine.nr task) pivot)
-									(setf (gethash job-index m1) (+ (gethash job-index m1) (task-compact-duration task)))
-									(setf (gethash job-index m2) (+ (gethash job-index m2) (task-compact-duration task)))))))
-
-					(loop while (> (hash-table-count m1) 0) do
-						(let* ((minimum-job (determine-minimum-job pending-jobs m1 m2))
-							   (min-job-id (first minimum-job))
-							   (first-machine-p (second minimum-job)))
-							(if first-machine-p
-								(setf job-sort (nconc (list min-job-id) job-sort))
-								(setf job-sort (nconc job-sort (list min-job-id))))
-							(setf pending-jobs (remove min-job-id pending-jobs))
-							(remhash min-job-id m1)
-							(remhash min-job-id m2)))
-
-					;(format t "jobsort: ~S~%" job-sort)
-					(dolist (job-index job-sort)
-						;(format t "allocate-task ~D ~%" job-index)
-						(setf state (result-allocate-task state job-index)))
-					state)))
-
-		(let ((state (copy-job-state initial-state)))
-			(loop while (not (objective? state)) do
-				;(format t ">>Calling for the next task~%")
-				(setf state (allocate-next-best-task state)))
-			state)))
-
+			(list (descrepancy-loop state 0) (- (get-internal-run-time) start-time)  *nos-expandidos* *nos-gerados*))))
 
 (defun iterative-search (problem)
 	(labels ((iterative-search-aux (problem total-tasks count)
@@ -362,94 +277,127 @@
 		   (interval 5)
 		   (times (nth-value 0 (floor num-tasks interval)))
 		   (final-state nil)
-		   (last-iteration 0))
+		   (last-iteration 0)
+		   (generated-nodes 0)
+	       (expanded-nodes 0)
+	       (start-time (get-internal-run-time)))
 
 	(dotimes (i times)
-		;(format t "Going until ~D ~%" (* i interval))
-		(setf (problema-estado-inicial problem) (first (last (first (iterative-search-aux problem num-tasks (* i interval))))))
-		(setf last-iteration (* i interval)))
+		(let* ((result (iterative-search-aux problem num-tasks (* i interval)))
+			   (result-gen-nodes (third result))
+			   (result-exp-nodes (second result))
+			   (result-state (first result)))
+			(setf generated-nodes (+ generated-nodes result-gen-nodes))
+		   	(setf expanded-nodes (+ expanded-nodes result-exp-nodes))
+		   	(setf final-state (first (last result-state)))
+			(setf (problema-estado-inicial problem) final-state)
+			(setf last-iteration (* i interval))))
 
 	(when (< last-iteration num-tasks)
-		  (setf final-state (iterative-search-aux problem num-tasks num-tasks)))
+		(let* ((result (iterative-search-aux problem num-tasks num-tasks))
+			   (result-gen-nodes (third result))
+			   (result-exp-nodes (second result))
+			   (result-state (first result)))
 
-	final-state)))
+		   (setf generated-nodes (+ generated-nodes result-gen-nodes))
+		   (setf expanded-nodes (+ expanded-nodes result-exp-nodes))
+		   (setf final-state (first (last result-state)))))
+
+	(list final-state (- (get-internal-run-time) start-time) expanded-nodes generated-nodes))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   CALENDARIZACAO   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun calendarizacao (problem strategy)
-	(calendarizao problem strategy));beutifru
-(defun calendarizao (problem strategy)
 	"Given a problem and a strategy (melhor.abordagem, a*.melhor.heuristica, a*.melhor.heuristica.alternativa,
 	sondagem.iterativa, ILDS or abordagem.alternativa), returns the result-state"
-	(let ((name-problem (job-shop-problem-name problem))
-		  (initial-state (job-shop-problem-to-job-state problem))
-		  (result-state nil)
-		  (*nos-gerados* 0)
-		  (*nos-expandidos* 0))
-		(cond 
-			((equal strategy "1");"melhor.abordagem") 
-				(setf result-state (procura (cria-problema initial-state 
-								 		(list #'sucessors)
-									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-1
-									   	:estado= #'equals-job-states
-									   	:custo #'cost-transition-max-machines)
-									"a*"
-									:espaco-em-arvore? t)))
-			((equal strategy "2");"a*.melhor.heuristica") 
-				(setf result-state (procura (cria-problema initial-state 
-								 		(list #'sucessors-with-cut)
-									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-1
-									   	:estado= #'equals-job-states
-									   	:custo #'cost-transition-max-machines) 
-								   	"a*"
-		   							:espaco-em-arvore? t)))
-			((equal strategy "3");a*.melhor.heuristica.alternativa") 
-				(setf result-state (procura (cria-problema initial-state 
-								 		(list #'sucessors)
-									   	:objectivo? #'objective? 
-									   	:heuristica #'start-time-sum
-									   	:custo #'cost-transition-max-machines) 
-								   	"a*"
-		   							:espaco-em-arvore? t)))
-			((equal strategy "4") ; sondagem.iterativa") 
-				(setf result-state (sondagem-iterativa (cria-problema initial-state 
+
+	(let ((result-state nil)
+		  (solution nil)
+		  (generated-nodes 0)
+		  (expanded-nodes 0)
+		  (search-time nil))
+
+		(cond ((equal strategy "1");"melhor.abordagem") 
+				(setf result-state (melhor-abordagem problem)))
+			  ((equal strategy "2");"a*.melhor.heuristica") 
+				(setf result-state (a-star-best-heuristic problem)))
+
+			  ((equal strategy "3");"a*.melhor.heuristica.alternativa") 
+				(setf result-state (a-star-alternative-heuristic problem)))
+			  ((equal strategy "4");"sondagem.iterativa") 
+				(setf result-state (sondagem-iterativa problem)))
+			  ((equal strategy "5");"ILDS") 
+				(setf result-state (ilds problem)))
+			  ((equal strategy "6");"abordagem.alternativa")
+				(setf result-state (melhor-abordagem problem))))
+
+
+		(setf generated-nodes (fourth result-state))
+		(setf expanded-nodes (third result-state))
+		(setf search-time (second result-state))
+		(setf solution (convert-job-state-to-lst-tasks (first result-state)))
+
+
+		(format t "~%Generated nodes: ~D ~%Expanded nodes: ~D ~% Search-time: ~D ~% " generated-nodes expanded-nodes search-time)
+
+		solution
+		))
+
+
+(defun melhor-abordagem (problem)
+	(let* ((initial-state (job-shop-problem-to-job-state problem)))
+
+	(iterative-search (cria-problema initial-state 
+					 		(list #'sucessors)
+						   	:objectivo? #'objective? 
+						   	:heuristica #'heuristic-1
+						   	:custo #'cost-transition-max-machines))))
+
+(defun a-star-best-heuristic (problem)
+	(let* ((initial-state (job-shop-problem-to-job-state problem))
+		   (result (procura (cria-problema initial-state 
+							 		(list #'sucessors)
+								   	:objectivo? #'objective? 
+								   	:heuristica #'heuristic-1
+								   	:estado= #'equals-job-states
+								   	:custo #'cost-transition-max-machines)
+								"a*"
+								:espaco-em-arvore? t)))
+	(setf (first result) (first (last (first result))))
+	result))
+
+
+(defun a-star-alternative-heuristic (problem)
+	(let* ((initial-state (job-shop-problem-to-job-state problem))
+		   (result (procura (cria-problema initial-state 
+							 		(list #'sucessors)
+								   	:objectivo? #'objective? 
+								   	:heuristica #' most-duration-left
+								   	:estado= #'equals-job-states
+								   	:custo #'cost-transition-max-machines)
+								"a*"
+								:espaco-em-arvore? t)))
+	(setf (first result) (first (last (first result))))
+	result))
+
+(defun sondagem-iterativa (problem)
+	(let* ((initial-state (job-shop-problem-to-job-state problem))
+	 	   (result (random-probe-iterative (cria-problema initial-state 
 										(list #'sucessors) 
 										:objectivo? #'objective?))))
-			((equal strategy "5"); ILDS") 
-				(setf result-state (ILDS-job-shop (cria-problema initial-state
+	(setf (first result) (first (last (first result))))
+	result))
+
+
+(defun ilds (problem)
+	(let* ((initial-state (job-shop-problem-to-job-state problem)))
+
+	(ILDS-job-shop (cria-problema initial-state
 							(list #'sucessors)
 							:objectivo? #'objective? 
 							:heuristica #'heuristic-1))))
-
-			((equal strategy "6");abordagem.alternativa")
-				(setf result-state (johnsons-algorithm initial-state)))
-			((equal strategy "7")
-				(setf result-state (iterative-search (cria-problema initial-state 
-								 		(list #'sucessors)
-									   	:objectivo? #'objective? 
-									   	:heuristica #'heuristic-1
-									   	:custo #'cost-transition-max-machines)))))
-
-		;por cada estrategia a devovler uma lista (lista-estados nil nos-gerados nos-expandidos)
-		(cond ((or (equal strategy "1");"melhor.abordagem")
-			       (equal strategy "2");"a*.melhor.heuristica")
-			       (equal strategy "3")
-			       (equal strategy "4")
-			       (equal strategy "7"))
-				(setf *nos-gerados* (fourth result-state))
-				(setf *nos-expandidos* (third result-state))
-				(setf result-state (first (last (first result-state))))))
-
-		(format t "~%Ns gerados: ~D ~%Ns expandidos: ~D ~%" *nos-gerados* *nos-expandidos*)
-
-		result-state
-		;(convert-job-state-to-job-shop-problem result-state name-problem)
-		))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   UTILITARY AND DEBUG   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -457,6 +405,10 @@
 
 
 (defun determine-best-strategy ()
+;	(labels ((get-cost-solution (tasks)
+;			(dolist (task solutions)
+
+;				))))
 	(let ((probs (list prof1 prof2 prof3 prof5))
 		  (strategies (list "1" "3"))
 		  (current-best 99999999)
@@ -473,11 +425,3 @@
 					(setf current-best sum-costs)
 					(setf best-strategy strategy))))
 	current-best))
-
-(defun calc-heur (lst)
-	(dolist (a lst)
-		(print a)
-		(format t "cost: ~D~%" (cost-state-max-start-time a))
-		(format t "difference: ~D~%" (cost-transition-max-machines a))
-		(format t "heuristica: ~D~%" (heuristic-5 a))
-		(read)))
