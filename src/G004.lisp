@@ -177,7 +177,7 @@
 	   (+ (* 0.55 sum-durations-non-allocated-tasks)
 	   	  (* 0.45 (/ sum-durations-non-allocated-tasks num-machines)))))
 
-;;; most-duration-left - TIAGOOOO
+;;; most-duration-left - Tends to choose task that leaves the MOST work to do
 (defun most-duration-left (state)
 	(labels ((sum-duration (tasklist &optional (total 0))
 		 (if (null tasklist)
@@ -391,21 +391,22 @@
 							:heuristica #'estimate-time-left-part-sequential-part-paralel)))
 
 ;;;;
-;;;; Utilitary functions for performance measurence
+;;;; Utilitary functions for performance measure
 ;;;;
 
 ;;; determine-best-strategy - Measures different strategies performance by summing the total cost of all the resulting states
 (defun determine-best-strategy ()
-	(let ((probs (list 	prof1 
-						prof2 
-						prof3 
+	(let ((probs (list 	;prof1 
+						;prof2 
+						;prof3 
 						;prof4 
-						prof5))
+						;prof5
+						))
 		  (strategies (list "melhor.abordagem"
-		  					"a*.melhor.heuristica" 
-		  					"a*.melhor.heuristica.alternativa" 
-		  					"sondagem.iterativa" 
-		  					"ILDS" 
+		  					;"a*.melhor.heuristica" 
+		  					;"a*.melhor.heuristica.alternativa" 
+		  					;"sondagem.iterativa" 
+		  					;"ILDS" 
 		  					"abordagem.alternativa"))
 
 		  (current-best 99999999)
